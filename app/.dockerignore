@@ -1,0 +1,5 @@
+**/node_modules
+**/dist
+apps/mobile
+**/.DS_Store
+**/*.log

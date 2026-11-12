@@ -1,0 +1,25 @@
+# Данные пользователей и конфиг с секретами — только на сервере
+data/*
+!data/.keep
+
+# Локальные настройки конкретного сервера
+.env
+.env.*
+!.env.example
+docker-compose.override.yml
+
+# Зависимости и сборки
+**/node_modules/
+**/dist/
+**/build/
+
+# Базы, логи, архивы
+*.db
+*.sqlite
+*.log
+*.zip
+
+# Системный мусор
+.DS_Store
+.idea/
+.vscode/

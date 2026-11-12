@@ -1,0 +1,14 @@
+# Пример локальных настроек. Скопируйте в docker-compose.override.yml —
+# Docker Compose подхватит его автоматически, в git он не попадает.
+#
+# Подключение к уже работающей MariaDB/MySQL через внешнюю Docker-сеть
+# (в мастере настройки укажите хост — имя контейнера базы, например db):
+services:
+  selfinance:
+    networks:
+      - default
+      - db
+
+networks:
+  db:
+    external: true

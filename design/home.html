@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Selfinance — Главная</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===== Токены ===== */
+:root{
+  --bg:#F2F3F5;
+  --surface:#FFFFFF;
+  --surface-2:#F7F8FA;
+  --line:#E4E6EB;
+  --ink:#16181D;
+  --ink-2:#4A4F5C;
+  --muted:#8A8F9C;
+  --accent:#4338CA;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#EEF0FF;
+  --income:#15803D;
+  --income-soft:#E7F6EC;
+  --expense:#D9434A;
+  --expense-soft:#FCEBEC;
+  --frozen:#0E9AD6;
+  --frozen-soft:#E3F4FC;
+  --frozen-hatch:rgba(14,154,214,.22);
+  --transfer:#6B7080;
+  --radius-l:22px;
+  --radius-m:14px;
+  --radius-s:10px;
+  --shadow:0 1px 2px rgba(22,24,29,.04), 0 6px 24px -12px rgba(22,24,29,.12);
+  --font:"Onest","Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0F1115;
+  --surface:#181B21;
+  --surface-2:#1E2229;
+  --line:#2A2F38;
+  --ink:#EEF0F4;
+  --ink-2:#B4B9C4;
+  --muted:#7D8391;
+  --accent:#8B8CF8;
+  --accent-ink:#0F1115;
+  --accent-soft:#25264A;
+  --income:#4ADE80;
+  --income-soft:#15281D;
+  --expense:#F87178;
+  --expense-soft:#2E1A1C;
+  --frozen:#38BDF8;
+  --frozen-soft:#132A36;
+  --frozen-hatch:rgba(56,189,248,.28);
+  --transfer:#9AA0AD;
+  --shadow:0 0 0 1px var(--line);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--ink);
+  font-size:15px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; white-space:nowrap}
+.kop{color:var(--muted); font-weight:500}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:8px}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ===== Каркас ===== */
+.app{display:grid; grid-template-columns:240px 1fr; min-height:100vh}
+.side{
+  position:sticky; top:0; height:100vh;
+  padding:28px 18px; display:flex; flex-direction:column; gap:28px;
+  border-right:1px solid var(--line);
+}
+.logo{display:flex; align-items:center; gap:10px; font-weight:700; font-size:19px; letter-spacing:-.02em; padding:0 10px}
+.logo-mark{
+  width:30px;height:30px;border-radius:9px;background:var(--accent);
+  display:grid;place-items:center;color:var(--accent-ink);
+}
+.logo-mark svg{width:18px;height:18px}
+.nav{display:flex; flex-direction:column; gap:2px}
+.nav a{
+  display:flex; align-items:center; gap:12px;
+  padding:10px 12px; border-radius:var(--radius-s);
+  color:var(--ink-2); text-decoration:none; font-weight:500;
+}
+.nav a:hover{background:var(--surface)}
+.nav a[aria-current="page"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow)}
+.side-foot{margin-top:auto; display:flex; flex-direction:column; gap:2px}
+
+main{padding:28px 40px 64px; max-width:1240px; width:100%}
+
+/* ===== Шапка ===== */
+.top{display:flex; align-items:center; gap:12px; margin-bottom:28px}
+.budget{
+  display:flex; align-items:center; gap:8px;
+  background:transparent; border:1px solid var(--line); border-radius:999px;
+  padding:7px 12px 7px 8px; font-weight:500;
+}
+.budget .dot{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:700}
+.budget svg{width:16px;height:16px;color:var(--muted)}
+.month{display:flex; align-items:center; gap:4px; margin-left:auto}
+.month b{font-weight:600; min-width:118px; text-align:center}
+.icon-btn{
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:transparent;
+  display:grid;place-items:center;color:var(--ink-2)
+}
+.icon-btn:hover{background:var(--surface)}
+.btn-add{
+  display:flex; align-items:center; gap:8px;
+  background:var(--accent); color:var(--accent-ink); border:0;
+  padding:10px 18px 10px 14px; border-radius:999px; font-weight:600;
+}
+.btn-add:hover{filter:brightness(1.08)}
+
+/* ===== Капитал (главный элемент) ===== */
+.capital{margin-bottom:32px}
+.cap-head{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap}
+.cap-label{color:var(--ink-2); font-weight:500; margin-bottom:6px}
+.cap-free{font-size:56px; line-height:1; font-weight:700; letter-spacing:-.035em}
+.cap-free .kop{font-size:32px}
+.cap-free .cur{font-size:34px; font-weight:600; color:var(--ink-2); margin-left:6px}
+.cap-side{display:flex; gap:28px}
+.cap-side div{display:flex; flex-direction:column; align-items:flex-end}
+.cap-side span{color:var(--muted); font-size:13px}
+.cap-side b{font-size:20px; font-weight:600; letter-spacing:-.01em}
+.cap-side .frz b{color:var(--frozen)}
+
+.bar{
+  margin-top:20px; display:flex; height:44px; border-radius:var(--radius-m); overflow:hidden;
+  background:var(--surface); box-shadow:var(--shadow);
+}
+.seg{position:relative; display:flex; align-items:center; padding:0 14px; gap:8px; font-size:13px; font-weight:600; min-width:0}
+.seg + .seg{border-left:2px solid var(--bg)}
+.seg-free{background:var(--accent); color:var(--accent-ink)}
+.seg-free.s2{background:color-mix(in oklab, var(--accent) 78%, var(--surface))}
+.seg-free.s3{background:color-mix(in oklab, var(--accent) 56%, var(--surface))}
+.seg-ice{
+  color:var(--frozen);
+  background:
+    repeating-linear-gradient(-45deg, var(--frozen-hatch) 0 2px, transparent 2px 9px),
+    var(--frozen-soft);
+}
+.seg-ice svg{width:16px;height:16px}
+.seg span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.legend{display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:12px; font-size:13px; color:var(--ink-2)}
+.legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:7px; vertical-align:-1px}
+
+/* ===== Месяц ===== */
+.grid{display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:20px; align-items:start}
+.panel{background:var(--surface); border-radius:var(--radius-l); box-shadow:var(--shadow); padding:24px}
+.panel h2{margin:0; font-size:17px; font-weight:600; letter-spacing:-.01em}
+.panel-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:18px}
+.link{color:var(--accent); text-decoration:none; font-weight:500; font-size:14px}
+
+.month-panel{grid-column:1 / -1}
+.totals{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0}
+.total{padding:0 20px; border-left:1px solid var(--line)}
+.total:first-child{padding-left:0; border-left:0}
+.total span{display:block; color:var(--ink-2); font-size:13px; margin-bottom:4px}
+.total b{display:block; font-size:26px; font-weight:650; letter-spacing:-.02em}
+.total small{display:inline-flex; align-items:center; gap:4px; margin-top:6px; font-size:12.5px; font-weight:500; padding:2px 8px; border-radius:999px}
+.t-in b{color:var(--income)}
+.t-out b{color:var(--expense)}
+.good{background:var(--income-soft); color:var(--income)}
+.bad{background:var(--expense-soft); color:var(--expense)}
+.neutral{background:var(--surface-2); color:var(--ink-2)}
+
+/* дни месяца */
+.days{margin-top:26px}
+.days-chart{position:relative; display:grid; grid-template-columns:repeat(30,1fr); gap:5px; align-items:end; height:96px}
+.d{border-radius:5px 5px 2px 2px; background:var(--expense); opacity:.85; min-height:3px}
+.d.zero{background:var(--line); opacity:1}
+.d.future{background:transparent; border:1.5px dashed var(--line); border-bottom:0; height:22px !important; opacity:1}
+.d.today{opacity:1; box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--expense)}
+.avg-line{position:absolute; left:0; right:0; border-top:1.5px dashed var(--ink-2); opacity:.45}
+.avg-tag{position:absolute; right:0; transform:translateY(-100%); font-size:12px; color:var(--ink-2); background:var(--surface); padding:0 0 3px 8px}
+.days-axis{display:grid; grid-template-columns:repeat(30,1fr); gap:5px; margin-top:8px; font-size:11.5px; color:var(--muted); text-align:center}
+.days-note{display:flex; justify-content:space-between; gap:12px; margin-top:14px; font-size:13px; color:var(--ink-2); flex-wrap:wrap}
+
+/* ===== Операции ===== */
+.day-group + .day-group{margin-top:18px}
+.day-title{display:flex; justify-content:space-between; font-size:13px; color:var(--muted); margin:0 0 6px; font-weight:500}
+.tx{display:flex; align-items:center; gap:14px; padding:10px 8px; margin:0 -8px; border-radius:var(--radius-m)}
+.tx:hover{background:var(--surface-2)}
+.cat-ic{--c:var(--ink-2);width:40px;height:40px;border-radius:50%;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in oklab, var(--c) 13%, var(--surface))}
+:root[data-theme="dark"] .cat-ic{color:color-mix(in oklab, var(--c) 60%, white);background:color-mix(in oklab, var(--c) 24%, var(--surface))}
+.cat-ic svg{width:19px;height:19px}
+.tx-main{min-width:0; flex:1}
+.tx-title{font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tx-sub{font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tx-sum{font-weight:600; text-align:right}
+.tx-sum.in{color:var(--income)}
+.tx-sum.out{color:var(--ink)}
+.tx-sum.tr{color:var(--frozen)}
+.tx-acc{font-size:12.5px; color:var(--muted); text-align:right}
+
+/* ===== Категории ===== */
+.cat-row{display:grid; grid-template-columns:32px 1fr auto; gap:4px 12px; align-items:center; padding:9px 0}
+.cat-row .cat-ic{width:32px;height:32px}
+.cat-row .cat-ic svg{width:16px;height:16px}
+.cat-name{font-weight:500; font-size:14.5px}
+.cat-sum{font-weight:600; font-size:14.5px}
+.cat-track{grid-column:2 / 4; height:6px; border-radius:99px; background:var(--surface-2); overflow:hidden}
+.cat-track i{display:block; height:100%; border-radius:99px}
+.cat-subs{grid-column:2 / 4; font-size:12.5px; color:var(--muted)}
+
+/* ===== Счета ===== */
+.acc-group + .acc-group{margin-top:16px}
+.acc-group h3{display:flex; align-items:center; gap:6px; margin:0 0 4px; font-size:13px; color:var(--muted); font-weight:500}
+.acc-group h3 svg{width:14px;height:14px}
+.acc{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)}
+.acc:last-child{border-bottom:0}
+.acc-name{display:flex; align-items:center; gap:10px; font-weight:500; font-size:14.5px; min-width:0}
+.acc-name small{display:block; font-size:12.5px; color:var(--muted); font-weight:400}
+.bank{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.acc.frozen .acc-sum{color:var(--frozen)}
+.acc-sum{font-weight:600; font-size:14.5px}
+
+.stack{display:flex; flex-direction:column; gap:20px}
+
+/* ===== Мобильная навигация ===== */
+.tabbar{display:none}
+
+/* ===== Адаптив ===== */
+@media (max-width:1080px){
+  .app{grid-template-columns:76px 1fr}
+  .side{padding:24px 12px; align-items:center}
+  .logo span, .nav a span{display:none}
+  .logo{padding:0}
+  .nav a{justify-content:center; padding:11px}
+  main{padding:24px 28px 56px}
+}
+@media (max-width:860px){
+  .grid{grid-template-columns:1fr}
+  .totals{grid-template-columns:repeat(2,1fr); row-gap:20px}
+  .total:nth-child(3){padding-left:0; border-left:0}
+}
+@media (max-width:640px){
+  body{font-size:15px}
+  .app{display:block}
+  .side{display:none}
+  main{padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
+  .top{margin-bottom:20px}
+  .top .btn-add{display:none}
+  .month b{min-width:96px; font-size:14px}
+  .icon-btn{width:34px;height:34px}
+  .cap-free{font-size:42px}
+  .cap-free .kop{font-size:24px}
+  .cap-free .cur{font-size:26px}
+  .cap-side{width:100%; justify-content:space-between}
+  .cap-side div{align-items:flex-start}
+  .bar{height:38px}
+  .seg{padding:0 10px}
+  .seg-free span{display:none}
+  .panel{padding:18px; border-radius:18px}
+  .total{padding:0 14px}
+  .total b{font-size:21px}
+  .days-chart{gap:3px; height:76px}
+  .days-axis{gap:3px}
+  .tabbar{
+    display:grid; grid-template-columns:repeat(5,1fr); align-items:center;
+    position:fixed; left:0; right:0; bottom:0; z-index:10;
+    padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+    background:color-mix(in oklab, var(--surface) 88%, transparent);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border-top:1px solid var(--line);
+  }
+  .tabbar a{display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; color:var(--muted); text-decoration:none; padding:4px 0}
+  .tabbar a[aria-current="page"]{color:var(--accent)}
+  .tabbar .fab{
+    justify-self:center; width:54px; height:54px; border-radius:50%; border:0;
+    background:var(--accent); color:var(--accent-ink); display:grid; place-items:center;
+    box-shadow:0 8px 20px -6px color-mix(in oklab, var(--accent) 60%, transparent);
+    margin-top:-22px;
+  }
+  .tabbar .fab svg{width:26px;height:26px;stroke-width:2.2}
+}
+@media (prefers-reduced-motion:no-preference){
+  .d{transition:height .5s cubic-bezier(.2,.8,.2,1)}
+}
+</style>
+</head>
+<body>
+
+<!-- Иконки (Lucide) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r=".6"/><circle cx="3.5" cy="12" r=".6"/><circle cx="3.5" cy="18" r=".6"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-5M13 17V8M18 17v-9"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3"/><path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M21 12h-4a2 2 0 0 0 0 4h4z"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.2"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></symbol>
+  <symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 2v20M4.9 4.9l14.2 14.2M2 12h20M4.9 19.1 19.1 4.9"/><path d="m9 4 3 3 3-3M9 20l3-3 3 3M4 9l3 3-3 3M20 9l-3 3 3 3"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2.7-3.6A2 2 0 0 0 13.7 6H8.3a2 2 0 0 0-1.6.8L4 10.5 2.6 11A1 1 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7.5" cy="17" r="2"/><circle cx="16.5" cy="17" r="2"/><path d="M9.5 17h5"/></symbol>
+  <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"/><path d="M6 2v2M10 2v2M14 2v2"/></symbol>
+  <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m10 9 5 3-5 3z"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+  <symbol id="i-brief" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
+  <symbol id="i-pill" viewBox="0 0 24 24"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></symbol>
+</svg>
+
+<div class="app">
+  <!-- Боковое меню (десктоп / планшет) -->
+  <aside class="side">
+    <div class="logo">
+      <div class="logo-mark"><svg class="i"><use href="#i-wallet"/></svg></div>
+      <span>Selfinance</span>
+    </div>
+    <nav class="nav" aria-label="Разделы">
+      <a href="#" aria-current="page"><svg class="i"><use href="#i-home"/></svg><span>Главная</span></a>
+      <a href="#"><svg class="i"><use href="#i-list"/></svg><span>Операции</span></a>
+      <a href="#"><svg class="i"><use href="#i-chart"/></svg><span>Статистика</span></a>
+      <a href="#"><svg class="i"><use href="#i-wallet"/></svg><span>Счета</span></a>
+      <a href="#"><svg class="i"><use href="#i-tag"/></svg><span>Категории</span></a>
+      <a href="#"><svg class="i"><use href="#i-users"/></svg><span>Бюджеты</span></a>
+    </nav>
+    <div class="side-foot nav">
+      <a href="#"><svg class="i"><use href="#i-settings"/></svg><span>Настройки</span></a>
+    </div>
+  </aside>
+
+  <main>
+    <!-- Шапка -->
+    <header class="top">
+      <button class="budget" aria-label="Выбрать бюджет">
+        <span class="dot">С</span>Личный<svg class="i"><use href="#i-down"/></svg>
+      </button>
+      <div class="month">
+        <button class="icon-btn" aria-label="Предыдущий месяц"><svg class="i"><use href="#i-left"/></svg></button>
+        <b>Ноябрь 2026</b>
+        <button class="icon-btn" aria-label="Следующий месяц"><svg class="i"><use href="#i-right"/></svg></button>
+      </div>
+      <button class="icon-btn" id="theme" aria-label="Сменить тему"><svg class="i"><use href="#i-moon"/></svg></button>
+      <button class="btn-add"><svg class="i"><use href="#i-plus"/></svg>Добавить</button>
+    </header>
+
+    <!-- Капитал -->
+    <section class="capital" aria-label="Капитал">
+      <div class="cap-head">
+        <div>
+          <div class="cap-label">Свободные деньги</div>
+          <div class="cap-free num">184 320<span class="kop">,50</span><span class="cur">₽</span></div>
+        </div>
+        <div class="cap-side">
+          <div class="frz"><span>Заморожено</span><b class="num">410 000 ₽</b></div>
+          <div><span>Всего</span><b class="num">594 320,50 ₽</b></div>
+        </div>
+      </div>
+
+      <div class="bar" role="img" aria-label="Т-Банк 96 540, Сбер 62 780, наличные 25 000, заморожено 410 000">
+        <div class="seg seg-free" style="flex:96540"><span>Т-Банк</span></div>
+        <div class="seg seg-free s2" style="flex:62780"><span>Сбер</span></div>
+        <div class="seg seg-free s3" style="flex:25000"></div>
+        <div class="seg seg-ice" style="flex:410000"><svg class="i"><use href="#i-snow"/></svg><span>Вклад и копилки</span></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--accent)"></i>В обороте 31%</span>
+        <span><i style="background:var(--frozen)"></i>Заморожено 69%</span>
+      </div>
+    </section>
+
+    <div class="grid">
+      <!-- Месяц -->
+      <section class="panel month-panel" aria-label="Итоги ноября">
+        <div class="totals">
+          <div class="total t-in">
+            <span>Приход</span>
+            <b class="num">142 000 ₽</b>
+            <small class="neutral num">как в октябре</small>
+          </div>
+          <div class="total t-out">
+            <span>Расход</span>
+            <b class="num">48 730 ₽</b>
+            <small class="good num">−8% к октябрю</small>
+          </div>
+          <div class="total">
+            <span>Разница</span>
+            <b class="num">+93 270 ₽</b>
+            <small class="good num">+11 400 ₽</small>
+          </div>
+          <div class="total">
+            <span>В среднем за день</span>
+            <b class="num">4 430 ₽</b>
+            <small class="neutral num">31 010 ₽ в неделю</small>
+          </div>
+        </div>
+
+        <div class="days">
+          <div class="days-chart" id="days">
+            <div class="avg-line" id="avg"><span class="avg-tag num">в среднем 4 430 ₽</span></div>
+          </div>
+          <div class="days-axis" id="axis"></div>
+          <div class="days-note">
+            <span>Прошло 11 дней из 30</span>
+            <span>Если так продолжится, за месяц уйдёт <b class="num">≈ 132 900 ₽</b></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Последние операции -->
+      <section class="panel" aria-label="Последние операции">
+        <div class="panel-head">
+          <h2>Последние операции</h2>
+          <a class="link" href="#">Все операции</a>
+        </div>
+
+        <div class="day-group">
+          <p class="day-title"><span>Сегодня, 11 ноября</span><span class="num">−2 620 ₽</span></p>
+          <div class="tx">
+            <div class="cat-ic" style="--c:#15803D"><svg class="i"><use href="#i-cart"/></svg></div>
+            <div class="tx-main"><div class="tx-title">Продукты</div><div class="tx-sub">Лента, на неделю</div></div>
+            <div><div class="tx-sum out num">−2 340 ₽</div><div class="tx-acc">Т-Банк</div></div>
+          </div>
+          <div class="tx">
+            <div class="cat-ic" style="--c:#C2610C"><svg class="i"><use href="#i-coffee"/></svg></div>
+            <div class="tx-main"><div class="tx-title">Кафе и рестораны</div><div class="tx-sub">Кофе с собой</div></div>
+            <div><div class="tx-sum out num">−280 ₽</div><div class="tx-acc">Наличные</div></div>
+          </div>
+        </div>
+
+        <div class="day-group">
+          <p class="day-title"><span>Вчера, 10 ноября</span><span class="num">+138 800 ₽</span></p>
+          <div class="tx">
+            <div class="cat-ic" style="background:var(--income-soft);color:var(--income)"><svg class="i"><use href="#i-brief"/></svg></div>
+            <div class="tx-main"><div class="tx-title">Зарплата</div><div class="tx-sub">За октябрь</div></div>
+            <div><div class="tx-sum in num">+142 000 ₽</div><div class="tx-acc">Т-Банк</div></div>
+          </div>
+          <div class="tx">
+            <div class="cat-ic" style="background:var(--frozen-soft);color:var(--frozen)"><svg class="i"><use href="#i-snow"/></svg></div>
+            <div class="tx-main"><div class="tx-title">Заморожено в «Отпуск»</div><div class="tx-sub">Т-Банк → Копилка «Отпуск»</div></div>
+            <div><div class="tx-sum tr num">10 000 ₽</div><div class="tx-acc">перевод</div></div>
+          </div>
+          <div class="tx">
+            <div class="cat-ic" style="--c:#4338CA"><svg class="i"><use href="#i-car"/></svg></div>
+            <div class="tx-main"><div class="tx-title">Бензин</div><div class="tx-sub">Машина, полный бак</div></div>
+            <div><div class="tx-sum out num">−3 200 ₽</div><div class="tx-acc">Сбер</div></div>
+          </div>
+        </div>
+
+        <div class="day-group">
+          <p class="day-title"><span>9 ноября</span><span class="num">−1 049 ₽</span></p>
+          <div class="tx">
+            <div class="cat-ic" style="--c:#8B3FD9"><svg class="i"><use href="#i-play"/></svg></div>
+            <div class="tx-main"><div class="tx-title">Подписки</div><div class="tx-sub">Кинопоиск</div></div>
+            <div><div class="tx-sum out num">−399 ₽</div><div class="tx-acc">Т-Банк</div></div>
+          </div>
+          <div class="tx">
+            <div class="cat-ic" style="--c:#D9434A"><svg class="i"><use href="#i-pill"/></svg></div>
+            <div class="tx-main"><div class="tx-title">Здоровье</div><div class="tx-sub">Аптека</div></div>
+            <div><div class="tx-sum out num">−650 ₽</div><div class="tx-acc">Сбер</div></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="stack">
+        <!-- Расходы по категориям -->
+        <section class="panel" aria-label="Расходы по категориям">
+          <div class="panel-head">
+            <h2>Куда ушли деньги</h2>
+            <a class="link" href="#">Статистика</a>
+          </div>
+
+          <div class="cat-row">
+            <div class="cat-ic" style="--c:#15803D"><svg class="i"><use href="#i-cart"/></svg></div>
+            <div class="cat-name">Продукты</div><div class="cat-sum num">14 820 ₽</div>
+            <div class="cat-track"><i style="width:100%;background:#22A35A"></i></div>
+          </div>
+          <div class="cat-row">
+            <div class="cat-ic" style="--c:#4338CA"><svg class="i"><use href="#i-car"/></svg></div>
+            <div class="cat-name">Машина</div><div class="cat-sum num">11 200 ₽</div>
+            <div class="cat-track"><i style="width:75.6%;background:#5B54E0"></i></div>
+            <div class="cat-subs">Бензин 6 400 ₽, ТО 4 800 ₽</div>
+          </div>
+          <div class="cat-row">
+            <div class="cat-ic" style="--c:#0F7C7C"><svg class="i"><use href="#i-house"/></svg></div>
+            <div class="cat-name">Дом и ЖКХ</div><div class="cat-sum num">8 650 ₽</div>
+            <div class="cat-track"><i style="width:58.4%;background:#14A0A0"></i></div>
+          </div>
+          <div class="cat-row">
+            <div class="cat-ic" style="--c:#C2610C"><svg class="i"><use href="#i-coffee"/></svg></div>
+            <div class="cat-name">Кафе и рестораны</div><div class="cat-sum num">5 340 ₽</div>
+            <div class="cat-track"><i style="width:36%;background:#E8892E"></i></div>
+          </div>
+          <div class="cat-row">
+            <div class="cat-ic" style="background:var(--surface-2);color:var(--ink-2)"><svg class="i"><use href="#i-dots"/></svg></div>
+            <div class="cat-name">Остальное</div><div class="cat-sum num">8 720 ₽</div>
+            <div class="cat-track"><i style="width:58.8%;background:var(--muted)"></i></div>
+          </div>
+        </section>
+
+        <!-- Счета -->
+        <section class="panel" aria-label="Счета">
+          <div class="panel-head">
+            <h2>Счета</h2>
+            <a class="link" href="#">Управлять</a>
+          </div>
+          <div class="acc-group">
+            <h3>В обороте</h3>
+            <div class="acc">
+              <div class="acc-name"><span class="bank" style="background:#FFDD2D;color:#1A1A1A">Т</span>Т-Банк</div>
+              <div class="acc-sum num">96 540,50 ₽</div>
+            </div>
+            <div class="acc">
+              <div class="acc-name"><span class="bank" style="background:#21A038;color:#fff">С</span>Сбер, карта</div>
+              <div class="acc-sum num">62 780 ₽</div>
+            </div>
+            <div class="acc">
+              <div class="acc-name"><span class="bank" style="background:var(--surface-2);color:var(--ink-2)">₽</span>Наличные</div>
+              <div class="acc-sum num">25 000 ₽</div>
+            </div>
+          </div>
+          <div class="acc-group">
+            <h3 style="color:var(--frozen)"><svg class="i"><use href="#i-snow"/></svg>Заморожено</h3>
+            <div class="acc frozen">
+              <div class="acc-name"><span class="bank" style="background:#21A038;color:#fff">С</span><span>Вклад<small>до 15 марта, 16%</small></span></div>
+              <div class="acc-sum num">300 000 ₽</div>
+            </div>
+            <div class="acc frozen">
+              <div class="acc-name"><span class="bank" style="background:var(--frozen-soft);color:var(--frozen)">✈</span>Копилка «Отпуск»</div>
+              <div class="acc-sum num">110 000 ₽</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Нижняя навигация (телефон) -->
+<nav class="tabbar" aria-label="Разделы">
+  <a href="#" aria-current="page"><svg class="i"><use href="#i-home"/></svg>Главная</a>
+  <a href="#"><svg class="i"><use href="#i-list"/></svg>Операции</a>
+  <button class="fab" aria-label="Добавить операцию"><svg class="i"><use href="#i-plus"/></svg></button>
+  <a href="#"><svg class="i"><use href="#i-chart"/></svg>Статистика</a>
+  <a href="#"><svg class="i"><use href="#i-wallet"/></svg>Счета</a>
+</nav>
+
+<script>
+// Расходы по дням ноября (демо-данные)
+const spent = [4121, 8650, 2210, 0, 7480, 4100, 12400, 2900, 1049, 3200, 2620];
+const DAYS = 30, TODAY = 11;
+const max = Math.max(...spent) * 1.05;
+const avg = spent.reduce((a,b)=>a+b,0) / TODAY;
+const chart = document.getElementById('days');
+const axis = document.getElementById('axis');
+const H = chart.clientHeight;
+for (let d = 1; d <= DAYS; d++) {
+  const el = document.createElement('div');
+  el.className = 'd';
+  if (d > TODAY) el.classList.add('future');
+  else {
+    const v = spent[d-1];
+    if (!v) el.classList.add('zero');
+    el.style.height = Math.max(3, v / max * 100) + '%';
+    el.title = d + ' ноября: ' + v.toLocaleString('ru-RU') + ' ₽';
+    if (d === TODAY) el.classList.add('today');
+  }
+  chart.appendChild(el);
+  const t = document.createElement('span');
+  t.textContent = (d === 1 || d % 5 === 0 || (d === TODAY && innerWidth > 640)) ? d : '';
+  if (d === TODAY) t.style.cssText = 'color:var(--ink);font-weight:600';
+  axis.appendChild(t);
+}
+document.getElementById('avg').style.bottom = (avg / max * 100) + '%';
+
+// Тема: системная по умолчанию, переключатель для просмотра
+const root = document.documentElement;
+if (matchMedia('(prefers-color-scheme: dark)').matches) root.dataset.theme = 'dark';
+document.getElementById('theme').onclick = () => {
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+};
+</script>
+</body>
+</html>

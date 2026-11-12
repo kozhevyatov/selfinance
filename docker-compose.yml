@@ -1,0 +1,17 @@
+services:
+  selfinance:
+    # Готовый образ из GitHub. Если хотите собрать сами из исходников:
+    #   docker compose up -d --build
+    image: ${IMAGE:-ghcr.io/kozhevyatov/selfinance:latest}
+    build: ./app
+    container_name: selfinance
+    restart: unless-stopped
+    ports:
+      - "${PORT:-1444}:1444"
+    volumes:
+      - ./data:/data
+    environment:
+      - TZ=${TZ:-Europe/Moscow}
+
+# Нужен свой MySQL/MariaDB в другом контейнере? Создайте рядом
+# docker-compose.override.yml (пример — docker-compose.override.example.yml).
