@@ -1,0 +1,31 @@
+# Selfinance + уже существующий MySQL / MariaDB.
+#
+# Вариант 1: база в другом контейнере на этом же сервере.
+#   Контейнер базы должен быть в Docker-сети (здесь она называется db).
+#   Создать сеть:                docker network create db
+#   Подключить к ней базу:       docker network connect db <контейнер_базы>
+#   В мастере настройки хост — имя контейнера базы.
+#
+# Вариант 2: база на другом сервере или прямо на хосте.
+#   Сеть не нужна — удалите блоки networks. В мастере укажите IP или домен
+#   сервера базы (для базы на самом хосте — host.docker.internal).
+services:
+  selfinance:
+    image: ghcr.io/kozhevyatov/selfinance:latest
+    container_name: selfinance
+    restart: unless-stopped
+    ports:
+      - "1444:1444"
+    volumes:
+      - ./data:/data
+    environment:
+      - TZ=Europe/Moscow
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - db
+
+networks:
+  db:
+    external: true

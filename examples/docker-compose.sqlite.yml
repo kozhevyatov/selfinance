@@ -1,0 +1,13 @@
+# Selfinance + SQLite: самый простой вариант.
+# Все данные хранятся в одном файле ./data/selfinance.db
+services:
+  selfinance:
+    image: ghcr.io/kozhevyatov/selfinance:latest
+    container_name: selfinance
+    restart: unless-stopped
+    ports:
+      - "1444:1444"
+    volumes:
+      - ./data:/data
+    environment:
+      - TZ=Europe/Moscow

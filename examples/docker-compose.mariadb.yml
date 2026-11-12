@@ -1,0 +1,41 @@
+# Selfinance + своя MariaDB в одном файле.
+# Перед запуском создайте рядом файл .env с паролями:
+#
+#   DB_PASSWORD=придумайте_пароль
+#   DB_ROOT_PASSWORD=придумайте_другой_пароль
+#
+# В мастере настройки выберите MySQL/MariaDB и укажите:
+#   хост mariadb, порт 3306, пользователь selfinance,
+#   пароль из DB_PASSWORD, база selfinance
+services:
+  selfinance:
+    image: ghcr.io/kozhevyatov/selfinance:latest
+    container_name: selfinance
+    restart: unless-stopped
+    ports:
+      - "1444:1444"
+    volumes:
+      - ./data:/data
+    environment:
+      - TZ=Europe/Moscow
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  mariadb:
+    image: mariadb:11
+    container_name: selfinance-mariadb
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:?Укажите DB_ROOT_PASSWORD в .env}
+      - MARIADB_DATABASE=selfinance
+      - MARIADB_USER=selfinance
+      - MARIADB_PASSWORD=${DB_PASSWORD:?Укажите DB_PASSWORD в .env}
+      - TZ=Europe/Moscow
+    volumes:
+      - ./mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
