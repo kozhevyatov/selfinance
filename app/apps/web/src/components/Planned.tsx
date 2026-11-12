@@ -1,26 +1,25 @@
 import { useState, type FormEvent } from 'react';
-import { BellRing, PiggyBank, Trash2, X } from 'lucide-react';
+import { BellRing, Ban, Pencil, ShoppingCart, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { addDays, amountToInput, formatMoney, parseAmount, todayISO, type Planned, type PlannedItem, type PlannedOverview } from '@selfinance/shared';
+import { addDays, amountToInput, parseAmount, todayISO, type Planned, type PlannedItem, type PlannedOverview } from '@selfinance/shared';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
 import { CatIcon } from '../lib/icons';
 import type { Lookups } from '../lib/lookups';
-import { usePlannedAction, useReservePlanned, useSavePlanned, useUpcoming } from '../lib/queries';
+import { usePlannedAction, useSavePlanned, useUpcoming } from '../lib/queries';
 import { useTxSheet } from './Layout';
 import { Money } from './Money';
 import { dueLabel, shortDate, UpcomingRow } from './Upcoming';
 
-/** «через 3 дня» / «без даты» / «просрочен на 2 дня». */
+/** «20 ноября, через 8 дней» / «без даты». */
 export function planWhen(p: PlannedItem) {
   if (!p.date || p.daysLeft === null) return 'без даты';
   return `${shortDate(p.date)}, ${dueLabel(p.daysLeft)}`;
 }
 
-/** Строка «хватает / не хватает». */
+/** «Денег хватает» / «К этой дате не хватает X». */
 function PlanStatus({ p }: { p: PlannedItem }) {
-  if (p.need === 0) return <span className="plan-status ok">Отложено полностью</span>;
   if (p.shortfall > 0) {
     return (
       <span className="plan-status bad">
@@ -32,38 +31,93 @@ function PlanStatus({ p }: { p: PlannedItem }) {
   return <span className="plan-status ok">{p.date ? 'Денег хватает' : 'Можно купить сейчас'}</span>;
 }
 
-export function PlanRow({ p, l, onEdit, onReserve }: { p: PlannedItem; l: Lookups; onEdit: () => void; onReserve: () => void }) {
-  const open = useTxSheet();
-  const { canEdit } = useBudget();
-  const cat = l.category(p.categoryId);
-  const color = cat?.color ?? (cat?.parentId ? l.category(cat.parentId)?.color : null) ?? null;
-  const overdue = p.daysLeft !== null && p.daysLeft < 0;
-  const pct = p.amount ? Math.min(100, Math.round((p.reserved / p.amount) * 100)) : 0;
+function catColor(l: Lookups, categoryId: string | null) {
+  const cat = l.category(categoryId);
+  return { cat, color: cat?.color ?? (cat?.parentId ? l.category(cat.parentId)?.color : null) ?? null };
+}
 
+/** Строка плана — только информация; по нажатию открывается карточка с действиями. */
+export function PlanRow({ p, l, onOpen }: { p: PlannedItem; l: Lookups; onOpen: () => void }) {
+  const { cat, color } = catColor(l, p.categoryId);
+  const overdue = p.daysLeft !== null && p.daysLeft < 0;
   return (
-    <div className={'up-row plan-row' + (overdue ? ' overdue' : '')}>
-      <button type="button" className="cat-ic plan-ic" style={color ? { ['--c' as string]: color } : undefined} onClick={canEdit ? onEdit : undefined} aria-label="Изменить план">
+    <button type="button" className={'up-row plan-row' + (overdue ? ' overdue' : '')} onClick={onOpen}>
+      <div className="cat-ic" style={color ? { ['--c' as string]: color } : undefined}>
         <CatIcon name={cat?.icon ?? 'dots'} />
-      </button>
-      <button type="button" className="tx-main plan-main" onClick={canEdit ? onEdit : undefined}>
+      </div>
+      <div className="tx-main">
         <div className="tx-title">{p.name}</div>
         <div className={'tx-sub' + (overdue ? ' exp' : '')}>{planWhen(p)}</div>
-      </button>
-      <div className="tx-sum num">
-        <Money value={-p.amount} />
       </div>
-      {canEdit && (
-        <div className="up-actions">
-          <button className="btn btn-primary btn-sm" onClick={() => open({ planned: p })}>Купил</button>
-          <button className="btn btn-ghost btn-sm" onClick={onReserve}>Отложить</button>
+      <div className="tx-sum num"><Money value={-p.amount} /></div>
+      <div className="plan-extra"><PlanStatus p={p} /></div>
+    </button>
+  );
+}
+
+/* ---------- карточка плана с действиями ---------- */
+
+function PlanCard({ p, l, onClose, onEdit }: { p: PlannedItem; l: Lookups; onClose: () => void; onEdit: () => void }) {
+  const open = useTxSheet();
+  const { canEdit } = useBudget();
+  const action = usePlannedAction();
+  const { cat } = catColor(l, p.categoryId);
+  const acc = l.account(p.accountId);
+  const overdue = p.daysLeft !== null && p.daysLeft < 0;
+
+  async function cancel() {
+    if (!confirm(`Отменить план «${p.name}»? Его можно будет вернуть из списка отменённых.`)) return;
+    await action.mutateAsync({ id: p.id, action: 'cancel' });
+    onClose();
+  }
+
+  return (
+    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="sheet" role="dialog" aria-label={p.name}>
+        <div className="sheet-head">
+          <h2>{p.name}</h2>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть"><X size={18} /></button>
         </div>
-      )}
-      <div className="plan-extra">
-        <PlanStatus p={p} />
-        {p.reserved > 0 && (
-          <div className="plan-res">
-            <div className="plan-bar"><i style={{ width: pct + '%' }} /></div>
-            <small><PiggyBank size={13} /> отложено <Money value={p.reserved} round /> из <Money value={p.amount} round /></small>
+
+        <div className="plan-card-sum num"><Money value={p.amount} /></div>
+        <p className={'plan-card-when' + (overdue ? ' exp' : '')}>{p.date ? planWhen(p) : 'Без даты — когда-нибудь'}</p>
+        <p className="plan-card-status"><PlanStatus p={p} /></p>
+        {(cat || acc || p.comment) && (
+          <p className="muted plan-card-meta">
+            {[cat?.name, acc ? `со счёта «${acc.name}»` : null, p.comment].filter(Boolean).join(' · ')}
+          </p>
+        )}
+
+        {canEdit && (
+          <div className="plan-actions">
+            <button
+              type="button"
+              className="more-item"
+              onClick={() => {
+                onClose();
+                open({ planned: p });
+              }}
+            >
+              <span className="more-ico plan-ico-buy"><ShoppingCart size={19} strokeWidth={1.8} /></span>
+              <span className="more-text">
+                <b>Внести покупку</b>
+                <small className="muted">Уже купил — записать расход и закрыть план</small>
+              </span>
+            </button>
+            <button type="button" className="more-item" onClick={onEdit}>
+              <span className="more-ico"><Pencil size={18} strokeWidth={1.8} /></span>
+              <span className="more-text">
+                <b>Изменить</b>
+                <small className="muted">Сумма, дата, название, категория</small>
+              </span>
+            </button>
+            <button type="button" className="more-item" onClick={cancel} disabled={action.isPending}>
+              <span className="more-ico"><Ban size={18} strokeWidth={1.8} /></span>
+              <span className="more-text">
+                <b>Отменить план</b>
+                <small className="muted">Передумал покупать — убрать из списка</small>
+              </span>
+            </button>
           </div>
         )}
       </div>
@@ -79,7 +133,7 @@ const QUICK = [
   { days: 30, label: 'Через месяц' },
 ];
 
-export function PlannedSheet({ plan, l, onClose, onRelease }: { plan: Planned | null; l: Lookups; onClose: () => void; onRelease?: () => void }) {
+export function PlannedSheet({ plan, l, onClose }: { plan: Planned | null; l: Lookups; onClose: () => void }) {
   const { user } = useAuth();
   const today = todayISO(user?.timezone);
   const save = useSavePlanned();
@@ -122,13 +176,10 @@ export function PlannedSheet({ plan, l, onClose, onRelease }: { plan: Planned | 
     }
   }
 
-  async function run(kind: 'cancel' | 'delete') {
-    if (!plan) return;
-    const back = plan.reserved > 0 ? ` Отложенные ${formatMoney(plan.reserved)} вернутся на счёт.` : '';
-    const q = kind === 'cancel' ? `Отменить план «${plan.name}»?${back}` : `Удалить план «${plan.name}»?${back}`;
-    if (!confirm(q)) return;
+  async function remove() {
+    if (!plan || !confirm(`Удалить план «${plan.name}»?`)) return;
     try {
-      await action.mutateAsync({ id: plan.id, action: kind });
+      await action.mutateAsync({ id: plan.id, action: 'delete' });
       onClose();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не получилось');
@@ -139,7 +190,7 @@ export function PlannedSheet({ plan, l, onClose, onRelease }: { plan: Planned | 
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <form className="sheet" onSubmit={submit}>
         <div className="sheet-head">
-          <h2>{plan ? plan.name : 'Запланировать расход'}</h2>
+          <h2>{plan ? 'Изменить план' : 'Запланировать расход'}</h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть"><X size={18} /></button>
         </div>
 
@@ -209,93 +260,12 @@ export function PlannedSheet({ plan, l, onClose, onRelease }: { plan: Planned | 
           <input type="checkbox" className="switch" checked={excludeFromLimit} onChange={(e) => setExclude(e.target.checked)} />
         </label>
 
-        {plan && plan.reserved > 0 && (
-          <div className="rule-box plan-reserved-box">
-            <span><PiggyBank size={16} /> Отложено <b><Money value={plan.reserved} /></b></span>
-            {onRelease && <button type="button" className="link" onClick={onRelease}>Вернуть на счёт</button>}
-          </div>
-        )}
-
         {error && <div className="form-error">{error}</div>}
         <div className="sheet-actions">
           {plan && (
-            <>
-              <button type="button" className="btn btn-danger" onClick={() => run('delete')} disabled={action.isPending} aria-label="Удалить"><Trash2 size={18} /></button>
-              <button type="button" className="btn" onClick={() => run('cancel')} disabled={action.isPending}>Отменить план</button>
-            </>
+            <button type="button" className="btn btn-danger" onClick={remove} disabled={action.isPending} aria-label="Удалить"><Trash2 size={18} /></button>
           )}
           <button className="btn btn-primary" disabled={save.isPending}>{save.isPending ? 'Сохраняю…' : plan ? 'Сохранить' : 'Запланировать'}</button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-/* ---------- отложить / вернуть ---------- */
-
-export function ReserveSheet({ plan, l, mode, onClose }: { plan: PlannedItem | Planned; l: Lookups; mode: 'reserve' | 'release'; onClose: () => void }) {
-  const run = useReservePlanned();
-  const reserveAcc = l.account(plan.reserveAccountId);
-  const accounts = l.accounts.filter((a) => !a.isArchived && !a.isFrozen && a.id !== plan.reserveAccountId);
-  const need = Math.max(0, plan.amount - plan.reserved);
-  const def =
-    mode === 'reserve'
-      ? accounts.find((a) => a.id === plan.accountId) ?? accounts.find((a) => a.id === reserveAcc?.parentAccountId) ?? accounts[0]
-      : accounts.find((a) => a.id === reserveAcc?.parentAccountId) ?? accounts[0];
-  const [accountId, setAccountId] = useState(def?.id ?? '');
-  const [amount, setAmount] = useState(amountToInput(mode === 'reserve' ? need || plan.amount : plan.reserved));
-  const [error, setError] = useState<string | null>(null);
-  const acc = l.account(accountId);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    const a = parseAmount(amount);
-    if (!a || a <= 0) return setError('Введите сумму');
-    if (mode === 'release' && a > plan.reserved) return setError(`Отложено только ${formatMoney(plan.reserved)}`);
-    if (!accountId) return setError('Выберите счёт');
-    try {
-      await run.mutateAsync({ id: plan.id, mode, amount: a, accountId });
-      onClose();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не получилось');
-    }
-  }
-
-  return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <form className="sheet" onSubmit={submit}>
-        <div className="sheet-head">
-          <h2>{mode === 'reserve' ? `Отложить: ${plan.name}` : `Вернуть: ${plan.name}`}</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть"><X size={18} /></button>
-        </div>
-        <p className="hint" style={{ marginTop: 0 }}>
-          {mode === 'reserve'
-            ? 'Деньги переедут на замороженную копилку этого плана и перестанут считаться свободными, чтобы их случайно не потратить.'
-            : 'Деньги вернутся из копилки плана на счёт и снова станут свободными.'}
-        </p>
-        {plan.reserved > 0 && (
-          <p className="muted" style={{ fontSize: 14, margin: '0 0 14px' }}>
-            Уже отложено <Money value={plan.reserved} /> из <Money value={plan.amount} />
-            {mode === 'reserve' && need > 0 && <>, осталось <Money value={need} /></>}
-          </p>
-        )}
-        <label className="field">
-          <span>Сумма</span>
-          <input className="input num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
-        </label>
-        <label className="field">
-          <span>{mode === 'reserve' ? 'С какого счёта' : 'На какой счёт'}</span>
-          <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} — {formatMoney(a.balance)}</option>)}
-          </select>
-        </label>
-        {mode === 'reserve' && acc && (parseAmount(amount) ?? 0) > acc.balance && (
-          <p className="limit-warn" style={{ margin: '-6px 0 14px' }}>На счёте меньше — остаток уйдёт в минус.</p>
-        )}
-        {error && <div className="form-error">{error}</div>}
-        <div className="sheet-actions">
-          <button className="btn btn-primary" disabled={run.isPending}>{mode === 'reserve' ? 'Отложить' : 'Вернуть'}</button>
         </div>
       </form>
     </div>
@@ -314,7 +284,7 @@ export function ForecastSheet({ data, onClose }: { data: PlannedOverview; onClos
         </div>
         <p className="hint" style={{ marginTop: 0 }}>
           Из свободных денег по порядку вычитаются регулярные платежи и запланированные покупки
-          {data.horizon ? ` до ${shortDate(data.horizon)}` : ''}. Будущие доходы не учитываются. Отложенное под план уже не входит в свободные деньги, поэтому вычитается только остаток.
+          {data.horizon ? ` до ${shortDate(data.horizon)}` : ''}. Будущие доходы не учитываются.
         </p>
         <div className="fc-row fc-start">
           <span>Свободно сейчас</span>
@@ -354,29 +324,21 @@ export function AfterPlans({ data, onOpen }: { data: PlannedOverview; onOpen: ()
   );
 }
 
-/* ---------- управление листами плана (главная и экран «Планы») ---------- */
+/* ---------- листы плана (главная и экран «Планы») ---------- */
 
-type SheetState =
-  | { kind: 'edit'; plan: Planned | null }
-  | { kind: 'reserve' | 'release'; plan: Planned };
+type SheetState = { kind: 'card'; plan: PlannedItem } | { kind: 'edit'; plan: Planned | null };
 
 export function usePlanSheets(l: Lookups) {
   const [state, setState] = useState<SheetState | null>(null);
   const close = () => setState(null);
-  const sheets = !state ? null : state.kind === 'edit' ? (
-    <PlannedSheet
-      plan={state.plan}
-      l={l}
-      onClose={close}
-      onRelease={state.plan ? () => setState({ kind: 'release', plan: state.plan! }) : undefined}
-    />
+  const sheets = !state ? null : state.kind === 'card' ? (
+    <PlanCard p={state.plan} l={l} onClose={close} onEdit={() => setState({ kind: 'edit', plan: state.plan })} />
   ) : (
-    <ReserveSheet plan={state.plan} l={l} mode={state.kind} onClose={close} />
+    <PlannedSheet plan={state.plan} l={l} onClose={close} />
   );
   return {
     create: () => setState({ kind: 'edit', plan: null }),
-    edit: (plan: Planned) => setState({ kind: 'edit', plan }),
-    reserve: (plan: Planned) => setState({ kind: 'reserve', plan }),
+    open: (plan: PlannedItem) => setState({ kind: 'card', plan }),
     sheets,
   };
 }
@@ -402,7 +364,7 @@ export function AheadPanel({ l, planned }: { l: Lookups; planned?: PlannedOvervi
         </span>
       </div>
       {upcoming.map((u) => <UpcomingRow key={u.recurring.id} u={u} l={l} />)}
-      {shown.map((p) => <PlanRow key={p.id} p={p} l={l} onEdit={() => s.edit(p)} onReserve={() => s.reserve(p)} />)}
+      {shown.map((p) => <PlanRow key={p.id} p={p} l={l} onOpen={() => s.open(p)} />)}
       {items.length > shown.length && (
         <Link className="link plan-more" to="/planned">Ещё {items.length - shown.length} в списке планов</Link>
       )}

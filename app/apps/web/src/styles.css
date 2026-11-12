@@ -586,23 +586,25 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .rule-box small { font-size: 12.5px; line-height: 1.4 }
 
 /* ===== Запланированные расходы ===== */
-.plan-row .plan-ic { border: 0; cursor: pointer; padding: 0 }
-.plan-main { background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer }
-.plan-extra { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 13px }
+.plan-row { width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; font: inherit; color: inherit; cursor: pointer }
+.plan-row:hover .tx-title { color: var(--accent) }
+.plan-extra { grid-column: 2 / -1; font-size: 13px }
 .plan-status { font-weight: 500 }
 .plan-status.ok { color: var(--income) }
 .plan-status.bad { color: var(--expense) }
-.plan-res { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px; color: var(--frozen) }
-.plan-res small { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap }
-.plan-bar { flex: 1; height: 6px; border-radius: 99px; background: var(--frozen-soft); overflow: hidden; min-width: 60px }
-.plan-bar i { display: block; height: 100%; background: var(--frozen); border-radius: 99px }
 .plan-more { display: inline-block; margin-top: 10px }
 .plan-group { font-size: 14px; font-weight: 600; color: var(--ink-2); margin: 22px 0 4px }
 .plan-totals { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom: 18px; row-gap: 14px }
 .plan-after { background: none; border-top: 0; border-right: 0; border-bottom: 0; text-align: left; font: inherit; color: inherit; cursor: pointer }
 .plan-after small.link { padding: 0; font-size: 12.5px }
-.plan-reserved-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; color: var(--frozen) }
-.plan-reserved-box span { display: inline-flex; align-items: center; gap: 6px }
+.plan-card-sum { font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1 }
+.plan-card-when { margin: 6px 0 0; color: var(--ink-2) }
+.plan-card-status { margin: 10px 0 0; font-size: 14.5px }
+.plan-card-meta { margin: 6px 0 0; font-size: 13.5px }
+.plan-actions { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--radius-m); overflow: hidden }
+.plan-actions .more-item { width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; font: inherit; color: inherit; cursor: pointer }
+.plan-actions .more-item:first-child { border-top: 0 }
+.plan-ico-buy { background: var(--accent-soft); color: var(--accent) }
 .after-plans {
   display: inline-block; margin-top: 10px; padding: 4px 12px; border-radius: 999px; border: 0; cursor: pointer;
   font: inherit; font-size: 14px; color: var(--ink-2); background: var(--surface-2);
@@ -616,6 +618,3 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .fc-start, .fc-total { font-size: 15.5px }
 .fc-total { border-bottom: 0; padding-top: 12px }
 .fc-total.neg b { color: var(--expense) }
-@media (max-width: 640px) {
-  .plan-extra { grid-column: 2 / -1 }
-}

@@ -176,7 +176,7 @@ export default async function transactionRoutes(app: FastifyInstance) {
     };
     await db.insertInto('transactions').values(row).execute();
     await recomputeRule(db, row.recurring_id);
-    if (plan) await completePlan(db, plan, row, user.id);
+    if (plan) await completePlan(db, plan.id, row.id);
     return toTx(row);
   });
 

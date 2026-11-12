@@ -293,15 +293,3 @@ export function usePlannedAction() {
     onSuccess: invalidate,
   });
 }
-
-export function useReservePlanned() {
-  const { budgetId } = useBudget();
-  const invalidate = useInvalidateMoney();
-  return useMutation({
-    mutationFn: ({ id, mode, amount, accountId }: { id: string; mode: 'reserve' | 'release'; amount?: number; accountId?: string }) =>
-      mode === 'reserve'
-        ? post<Planned>(`/budgets/${budgetId}/planned/${id}/reserve`, { amount, fromAccountId: accountId })
-        : post(`/budgets/${budgetId}/planned/${id}/release`, { amount, toAccountId: accountId || null }),
-    onSuccess: invalidate,
-  });
-}

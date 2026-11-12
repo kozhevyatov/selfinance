@@ -21,7 +21,6 @@ export function PlannedPage() {
   const dated = items.filter((p) => p.date);
   const undated = items.filter((p) => !p.date);
   const total = items.reduce((sum, p) => sum + p.amount, 0);
-  const reserved = items.reduce((sum, p) => sum + p.reserved, 0);
 
   return (
     <>
@@ -41,7 +40,6 @@ export function PlannedPage() {
           <div className="totals plan-totals">
             <div className="total"><span>Свободно сейчас</span><b><Money value={data.free} round /></b></div>
             <div className="total t-out"><span>Запланировано</span><b><Money value={total} round /></b></div>
-            {reserved > 0 && <div className="total"><span>Уже отложено</span><b className="frz"><Money value={reserved} round /></b></div>}
             {data.afterPlans !== null && (
               <button type="button" className="total plan-after" onClick={() => setForecast(true)}>
                 <span>После планов{data.horizon ? ` (до ${shortDate(data.horizon)})` : ''}</span>
@@ -56,11 +54,11 @@ export function PlannedPage() {
           <div className="skeleton" style={{ height: 200 }} />
         ) : items.length ? (
           <>
-            {dated.map((p) => <PlanRow key={p.id} p={p} l={l} onEdit={() => s.edit(p)} onReserve={() => s.reserve(p)} />)}
+            {dated.map((p) => <PlanRow key={p.id} p={p} l={l} onOpen={() => s.open(p)} />)}
             {undated.length > 0 && (
               <>
                 <h3 className="plan-group">Когда-нибудь</h3>
-                {undated.map((p) => <PlanRow key={p.id} p={p} l={l} onEdit={() => s.edit(p)} onReserve={() => s.reserve(p)} />)}
+                {undated.map((p) => <PlanRow key={p.id} p={p} l={l} onOpen={() => s.open(p)} />)}
               </>
             )}
           </>
@@ -68,7 +66,7 @@ export function PlannedPage() {
           <div className="empty">
             <p>
               Запишите будущую покупку — она будет висеть на главной как напоминание и покажет, хватает ли на неё свободных денег
-              с учётом регулярных платежей. Под план можно заранее отложить деньги.
+              с учётом регулярных платежей.
             </p>
             {canEdit && <button className="btn btn-primary" onClick={s.create}>Запланировать расход</button>}
           </div>

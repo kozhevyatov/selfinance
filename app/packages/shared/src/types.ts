@@ -155,8 +155,6 @@ export interface Planned {
   comment: string | null;
   status: 'active' | 'done' | 'cancelled';
   excludeFromLimit: boolean;
-  reserveAccountId: string | null; // копилка «отложено под план»
-  reserved: number; // сколько сейчас отложено
   transactionId: string | null; // операция покупки
   doneAt: string | null;
   createdAt: string;
@@ -168,7 +166,7 @@ export interface ForecastStep {
   id: string;
   name: string;
   date: string;
-  amount: number; // сколько вычитается (для плана — неотложенный остаток)
+  amount: number;
   approx: boolean; // сумма регулярного платежа плавает
   balanceAfter: number;
 }
@@ -176,8 +174,6 @@ export interface ForecastStep {
 export interface PlannedItem extends Planned {
   /** дней до даты; null — без даты; < 0 — просрочен */
   daysLeft: number | null;
-  /** ещё нужно найти: сумма минус отложенное */
-  need: number;
   /** сколько не хватает к дате (для плана без даты — относительно остатка после всех планов) */
   shortfall: number;
 }

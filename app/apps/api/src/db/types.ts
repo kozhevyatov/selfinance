@@ -133,7 +133,7 @@ export interface PlannedTable {
   comment: string | null;
   status: 'active' | 'done' | 'cancelled';
   exclude_from_limit: number;
-  reserve_account_id: string | null;
+  reserve_account_id?: string | null; // не используется (было «отложить»), колонка осталась
   transaction_id: string | null;
   done_at: string | null;
   created_by: string;

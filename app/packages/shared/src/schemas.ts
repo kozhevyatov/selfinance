@@ -200,16 +200,6 @@ export const plannedCreateSchema = z.object({
   excludeFromLimit: z.boolean().optional(),
 });
 export const plannedUpdateSchema = plannedCreateSchema.partial();
-export const plannedReserveSchema = z.object({
-  amount: z.number().int().positive('Сумма должна быть больше нуля'),
-  fromAccountId: id,
-  date: isoDate.optional(),
-});
-export const plannedReleaseSchema = z.object({
-  amount: z.number().int().positive().optional(), // по умолчанию — всё отложенное
-  toAccountId: optId,
-  date: isoDate.optional(),
-});
 
 /* ---------- админка ---------- */
 

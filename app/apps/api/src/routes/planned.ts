@@ -1,8 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import {
   plannedCreateSchema,
-  plannedReleaseSchema,
-  plannedReserveSchema,
   plannedUpdateSchema,
   todayISO,
   type PlannedOverview,
@@ -14,7 +12,7 @@ import { requireUser } from '../lib/auth';
 import { badRequest, notFound, nowIso, uuidv7 } from '../lib/util';
 import { getAccount } from '../services/accounts';
 import { requireBudget } from '../services/budgets';
-import { buildOverview, getPlan, release, reserve, reserveBalance, toPlanned } from '../services/planned';
+import { buildOverview, getPlan, toPlanned } from '../services/planned';
 
 type P = { budgetId: string; pid: string };
 
@@ -60,7 +58,6 @@ export default async function plannedRoutes(app: FastifyInstance) {
       comment: input.comment?.trim() || null,
       status: 'active',
       exclude_from_limit: input.excludeFromLimit === false ? 0 : 1,
-      reserve_account_id: null,
       transaction_id: null,
       done_at: null,
       created_by: user.id,
@@ -69,7 +66,7 @@ export default async function plannedRoutes(app: FastifyInstance) {
       deleted_at: null,
     };
     await db.insertInto('planned').values(row).execute();
-    return toPlanned(row, 0);
+    return toPlanned(row);
   });
 
   app.patch<{ Params: P }>('/budgets/:budgetId/planned/:pid', async (req) => {
@@ -91,15 +88,10 @@ export default async function plannedRoutes(app: FastifyInstance) {
     if (input.comment !== undefined) patch.comment = input.comment?.trim() || null;
     if (input.excludeFromLimit !== undefined) patch.exclude_from_limit = input.excludeFromLimit ? 1 : 0;
     await db.updateTable('planned').set(patch).where('id', '=', pid).execute();
-    // копилка называется так же, как план
-    if (patch.name && plan.reserve_account_id) {
-      await db.updateTable('accounts').set({ name: patch.name.slice(0, 100), updated_at: now }).where('id', '=', plan.reserve_account_id).execute();
-    }
-    const updated = (await getPlan(db, budgetId, pid))!;
-    return toPlanned(updated, await reserveBalance(db, budgetId, updated.reserve_account_id));
+    return toPlanned((await getPlan(db, budgetId, pid))!);
   });
 
-  /** Отменить план: отложенное возвращается на счёт. */
+  /** Отменить план. */
   app.post<{ Params: P }>('/budgets/:budgetId/planned/:pid/cancel', async (req) => {
     const db = getDb();
     const user = await requireUser(req);
@@ -108,11 +100,9 @@ export default async function plannedRoutes(app: FastifyInstance) {
     const plan = await getPlan(db, budgetId, pid);
     if (!plan) throw notFound('План не найден');
     if (plan.status !== 'active') throw badRequest('План уже закрыт');
-    const today = todayISO(user.timezone);
-    const returned = await release(db, plan, { date: today, userId: user.id, archive: true });
     const now = nowIso();
     await db.updateTable('planned').set({ status: 'cancelled', done_at: now, updated_at: now }).where('id', '=', pid).execute();
-    return { ok: true, returned };
+    return { ok: true };
   });
 
   /** Вернуть отменённый план в работу. */
@@ -135,42 +125,8 @@ export default async function plannedRoutes(app: FastifyInstance) {
     await requireBudget(db, budgetId, user.id, 'member');
     const plan = await getPlan(db, budgetId, pid);
     if (!plan) throw notFound('План не найден');
-    let returned = 0;
-    if (plan.status === 'active') returned = await release(db, plan, { date: todayISO(user.timezone), userId: user.id, archive: true });
     const now = nowIso();
     await db.updateTable('planned').set({ deleted_at: now, updated_at: now }).where('id', '=', pid).execute();
-    return { ok: true, returned };
-  });
-
-  /** Отложить сумму под план. */
-  app.post<{ Params: P }>('/budgets/:budgetId/planned/:pid/reserve', async (req) => {
-    const db = getDb();
-    const user = await requireUser(req);
-    const { budgetId, pid } = req.params;
-    await requireBudget(db, budgetId, user.id, 'member');
-    const plan = await getPlan(db, budgetId, pid);
-    if (!plan) throw notFound('План не найден');
-    const input = plannedReserveSchema.parse(req.body);
-    await reserve(db, plan, input.amount, input.fromAccountId, input.date ?? todayISO(user.timezone), user.id);
-    const updated = (await getPlan(db, budgetId, pid))!;
-    return toPlanned(updated, await reserveBalance(db, budgetId, updated.reserve_account_id));
-  });
-
-  /** Вернуть отложенное (всё или часть). */
-  app.post<{ Params: P }>('/budgets/:budgetId/planned/:pid/release', async (req) => {
-    const db = getDb();
-    const user = await requireUser(req);
-    const { budgetId, pid } = req.params;
-    await requireBudget(db, budgetId, user.id, 'member');
-    const plan = await getPlan(db, budgetId, pid);
-    if (!plan) throw notFound('План не найден');
-    const input = plannedReleaseSchema.parse(req.body ?? {});
-    const returned = await release(db, plan, {
-      amount: input.amount,
-      toAccountId: input.toAccountId,
-      date: input.date ?? todayISO(user.timezone),
-      userId: user.id,
-    });
-    return { ok: true, returned };
+    return { ok: true };
   });
 }

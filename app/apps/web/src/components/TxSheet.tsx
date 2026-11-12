@@ -44,10 +44,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
       return '';
     }
   })();
-  const planAcc = plan
-    ? activeAccounts.find((a) => a.id === plan.accountId)?.id ??
-      activeAccounts.find((a) => a.id === l.account(plan.reserveAccountId)?.parentAccountId)?.id
-    : undefined;
+  const planAcc = plan ? activeAccounts.find((a) => a.id === plan.accountId)?.id : undefined;
   const defaultAcc = planAcc ?? activeAccounts.find((a) => a.id === lastAcc)?.id ?? activeAccounts.find((a) => !a.isFrozen)?.id ?? activeAccounts[0]?.id ?? '';
 
   const [type, setType] = useState<TxType>(edit?.type ?? pay?.type ?? (plan ? 'expense' : opts.type) ?? 'expense');
@@ -188,8 +185,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
 
         {plan ? (
           <p className="hint" style={{ marginTop: 0 }}>
-            Проверьте сумму и сохраните — план закроется.
-            {plan.reserved > 0 && ' Отложенные под него деньги вернутся на выбранный счёт и уйдут на покупку.'}
+            Проверьте сумму и сохраните — расход запишется, а план закроется.
           </p>
         ) : type === 'adjustment' ? (
           <p className="hint" style={{ marginTop: 0 }}>Корректировка баланса счёта. Сумма со знаком: минус уменьшает остаток.</p>

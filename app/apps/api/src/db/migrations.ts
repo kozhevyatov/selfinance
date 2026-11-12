@@ -227,6 +227,37 @@ migrations['0004_planned'] = {
   },
 };
 
+migrations['0005_planned_no_reserve'] = {
+  // «Отложить под план» убрано: удаляем копилки планов и переводы в них/из них,
+  // так что балансы счетов возвращаются к состоянию до откладывания.
+  async up(db: Kysely<any>) {
+    const now = new Date().toISOString();
+    const plans = await db.selectFrom('planned').select(['id', 'reserve_account_id']).where('reserve_account_id', 'is not', null).execute();
+    for (const p of plans) {
+      const acc = p.reserve_account_id as string;
+      const account = await db.selectFrom('accounts').select(['id', 'parent_account_id']).where('id', '=', acc).executeTakeFirst();
+      // расходы, внесённые прямо с копилки, переезжают на счёт, с которого откладывали
+      if (account?.parent_account_id) {
+        await db
+          .updateTable('transactions')
+          .set({ account_id: account.parent_account_id, updated_at: now })
+          .where('account_id', '=', acc)
+          .where('type', '!=', 'transfer')
+          .execute();
+      }
+      await db
+        .updateTable('transactions')
+        .set({ deleted_at: now, updated_at: now })
+        .where('type', '=', 'transfer')
+        .where('deleted_at', 'is', null)
+        .where((eb) => eb.or([eb('account_id', '=', acc), eb('to_account_id', '=', acc)]))
+        .execute();
+      await db.updateTable('accounts').set({ deleted_at: now, updated_at: now }).where('id', '=', acc).execute();
+      await db.updateTable('planned').set({ reserve_account_id: null }).where('id', '=', p.id).execute();
+    }
+  },
+};
+
 class InlineProvider implements MigrationProvider {
   async getMigrations() {
     return migrations;
