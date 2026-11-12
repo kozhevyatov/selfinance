@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
-import { BarChart3, ChevronDown, Home, List, LogOut, Menu, Moon, Plus, Repeat, Settings, Sun, Tag, Users, Wallet } from 'lucide-react';
+import { BarChart3, CalendarClock, ChevronDown, Home, List, LogOut, Menu, Moon, Plus, Repeat, Settings, Sun, Tag, Users, Wallet } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
 import { getTheme, toggleTheme } from '../lib/theme';
@@ -15,6 +15,7 @@ const NAV = [
   { to: '/stats', label: 'Статистика', icon: BarChart3 },
   { to: '/accounts', label: 'Счета', icon: Wallet },
   { to: '/recurring', label: 'Регулярные', icon: Repeat },
+  { to: '/planned', label: 'Планы', icon: CalendarClock },
   { to: '/categories', label: 'Категории', icon: Tag },
   { to: '/budgets', label: 'Бюджеты', icon: Users },
 ];
@@ -27,7 +28,7 @@ export function Layout() {
   const close = useCallback(() => setSheet(null), []);
   const [params, setParams] = useSearchParams();
   const { pathname } = useLocation();
-  const moreActive = ['/more', '/accounts', '/recurring', '/categories', '/budgets', '/settings'].some((p) => pathname.startsWith(p));
+  const moreActive = ['/more', '/accounts', '/recurring', '/planned', '/categories', '/budgets', '/settings'].some((p) => pathname.startsWith(p));
 
   // ярлык «Добавить операцию» с иконки приложения: /?add=1
   useEffect(() => {

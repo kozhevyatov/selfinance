@@ -21,7 +21,7 @@ export const shortDate = (date: string) => {
   return `${d} ${MONTHS_GEN[m - 1]}`;
 };
 
-function Row({ u, l }: { u: UpcomingPayment; l: Lookups }) {
+export function UpcomingRow({ u, l }: { u: UpcomingPayment; l: Lookups }) {
   const open = useTxSheet();
   const skip = useSkipRecurring();
   const link = useLinkRecurring();
@@ -79,7 +79,7 @@ export function UpcomingPanel({ l }: { l: Lookups }) {
         </h2>
         <Link className="link" to="/recurring">Все регулярные</Link>
       </div>
-      {data.map((u) => <Row key={u.recurring.id} u={u} l={l} />)}
+      {data.map((u) => <UpcomingRow key={u.recurring.id} u={u} l={l} />)}
     </section>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { addDays, amountToInput, formatMoney, parseAmount, todayISO, type Recurring, type Transaction, type TxType } from '@selfinance/shared';
+import { addDays, amountToInput, formatMoney, parseAmount, todayISO, type Planned, type Recurring, type Transaction, type TxType } from '@selfinance/shared';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
@@ -16,6 +16,8 @@ export interface TxSheetOptions {
   toAccountId?: string;
   /** оплата регулярного платежа: форма заполняется из правила */
   recurring?: Recurring;
+  /** покупка по запланированному расходу */
+  planned?: Planned;
 }
 
 const LAST_ACC = 'sf.lastAccount.';
@@ -30,6 +32,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
   const deleteRule = useDeleteRecurring();
   const { data: rules = [] } = useRecurring();
   const pay = opts.recurring;
+  const plan = opts.tx ? undefined : opts.planned;
   const today = todayISO(user?.timezone);
   const edit = opts.tx;
 
@@ -41,11 +44,15 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
       return '';
     }
   })();
-  const defaultAcc = activeAccounts.find((a) => a.id === lastAcc)?.id ?? activeAccounts.find((a) => !a.isFrozen)?.id ?? activeAccounts[0]?.id ?? '';
+  const planAcc = plan
+    ? activeAccounts.find((a) => a.id === plan.accountId)?.id ??
+      activeAccounts.find((a) => a.id === l.account(plan.reserveAccountId)?.parentAccountId)?.id
+    : undefined;
+  const defaultAcc = planAcc ?? activeAccounts.find((a) => a.id === lastAcc)?.id ?? activeAccounts.find((a) => !a.isFrozen)?.id ?? activeAccounts[0]?.id ?? '';
 
-  const [type, setType] = useState<TxType>(edit?.type ?? pay?.type ?? opts.type ?? 'expense');
-  const [amountStr, setAmountStr] = useState(edit ? amountToInput(edit.amount) : pay ? amountToInput(pay.amount) : '');
-  const [categoryId, setCategoryId] = useState<string | null>(edit?.categoryId ?? pay?.categoryId ?? null);
+  const [type, setType] = useState<TxType>(edit?.type ?? pay?.type ?? (plan ? 'expense' : opts.type) ?? 'expense');
+  const [amountStr, setAmountStr] = useState(edit ? amountToInput(edit.amount) : pay ? amountToInput(pay.amount) : plan ? amountToInput(plan.amount) : '');
+  const [categoryId, setCategoryId] = useState<string | null>(edit?.categoryId ?? pay?.categoryId ?? plan?.categoryId ?? null);
   const initialAcc = edit?.accountId ?? pay?.accountId ?? opts.accountId ?? defaultAcc;
   const [accountId, setAccountId] = useState(initialAcc);
   const [toAccountId, setToAccountId] = useState(
@@ -54,7 +61,12 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
   const [date, setDate] = useState(edit?.date ?? today);
   const linkedRule = rules.find((r) => r.id === (edit?.recurringId ?? pay?.id));
   const [comment, setComment] = useState(
-    edit?.comment ?? (pay && pay.name !== l.category(pay.categoryId)?.name ? pay.name : ''),
+    edit?.comment ??
+      (pay
+        ? pay.name !== l.category(pay.categoryId)?.name ? pay.name : ''
+        : plan
+          ? plan.name !== l.category(plan.categoryId)?.name ? plan.name : ''
+          : ''),
   );
   const [isRecurring, setIsRecurring] = useState(!!(edit?.recurringId || pay));
   // настройки регулярного платежа — раскрываются под переключателем
@@ -126,6 +138,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
           categoryId: regularAllowed ? categoryId : null,
           comment: comment.trim() || null,
           recurringId: unlink ? null : ruleId,
+          ...(plan ? { plannedId: plan.id } : {}),
         },
       });
       if (unlink && ruleId) await deleteRule.mutateAsync(ruleId);
@@ -160,7 +173,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
     onClose();
   }
 
-  const title = edit ? 'Операция' : pay ? `Оплата: ${pay.name}` : 'Новая операция';
+  const title = edit ? 'Операция' : pay ? `Оплата: ${pay.name}` : plan ? `Покупка: ${plan.name}` : 'Новая операция';
   const showAccount = activeAccounts.length > 1 || type === 'transfer';
 
   return (
@@ -173,7 +186,12 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
           </button>
         </div>
 
-        {type === 'adjustment' ? (
+        {plan ? (
+          <p className="hint" style={{ marginTop: 0 }}>
+            Проверьте сумму и сохраните — план закроется.
+            {plan.reserved > 0 && ' Отложенные под него деньги вернутся на выбранный счёт и уйдут на покупку.'}
+          </p>
+        ) : type === 'adjustment' ? (
           <p className="hint" style={{ marginTop: 0 }}>Корректировка баланса счёта. Сумма со знаком: минус уменьшает остаток.</p>
         ) : (
           <div className={'segmented t-' + type}>
@@ -302,7 +320,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
           </div>
         </div>
 
-        {(type === 'expense' || (type === 'income' && !!linkedRule)) && (
+        {!plan && (type === 'expense' || (type === 'income' && !!linkedRule)) && (
           <>
             <label className="switch-row">
               <span>

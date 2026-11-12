@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, LogOut, Repeat, Settings, Tag, Users, Wallet } from 'lucide-react';
+import { CalendarClock, ChevronRight, LogOut, Repeat, Settings, Tag, Users, Wallet } from 'lucide-react';
 import { TopBar } from '../components/Layout';
 import { useAuth } from '../lib/auth';
 
 const ITEMS = [
   { to: '/accounts', label: 'Счета', hint: 'Банки, наличные, накопления', icon: Wallet },
   { to: '/recurring', label: 'Регулярные платежи', hint: 'Напоминания о ежемесячных платежах', icon: Repeat },
+  { to: '/planned', label: 'Планы', hint: 'Запланированные покупки и сколько на них не хватает', icon: CalendarClock },
   { to: '/categories', label: 'Категории', hint: 'Добавить, изменить, удалить', icon: Tag },
   { to: '/budgets', label: 'Бюджеты', hint: 'Личный и семейные', icon: Users },
   { to: '/settings', label: 'Настройки', hint: 'Профиль, пароль, оформление', icon: Settings },

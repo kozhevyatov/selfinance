@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Account, Capital, Category, DynamicsPoint, Limits, Recurring, Summary, Transaction, TxCreateInput, TxPage, UpcomingPayment } from '@selfinance/shared';
+import type { Account, Capital, Category, DynamicsPoint, Limits, Planned, PlannedOverview, Recurring, Summary, Transaction, TxCreateInput, TxPage, UpcomingPayment } from '@selfinance/shared';
 import { api, del, get, patch, post } from './api';
 import { useBudget } from './budget';
 
@@ -62,7 +62,7 @@ function useInvalidateMoney() {
   const qc = useQueryClient();
   const { budgetId } = useBudget();
   return () => {
-    for (const k of ['transactions', 'summary', 'capital', 'accounts', 'dynamics', 'recurring', 'upcoming', 'limits']) qc.invalidateQueries({ queryKey: [k, budgetId] });
+    for (const k of ['transactions', 'summary', 'capital', 'accounts', 'dynamics', 'recurring', 'upcoming', 'limits', 'planned']) qc.invalidateQueries({ queryKey: [k, budgetId] });
     qc.invalidateQueries({ queryKey: ['accounts-all', budgetId] });
   };
 }
@@ -253,5 +253,55 @@ export function useSaveLimits() {
       for (const l of data.set) await api('PUT', `/budgets/${budgetId}/limits`, { ...l, fromMonth: data.fromMonth });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['limits', budgetId] }),
+  });
+}
+
+/* ---------- запланированные расходы ---------- */
+
+export function usePlanned() {
+  const { budgetId } = useBudget();
+  return useQuery({ queryKey: ['planned', budgetId], queryFn: () => get<PlannedOverview>(`/budgets/${budgetId}/planned`) });
+}
+
+export interface PlannedInput {
+  name?: string;
+  amount?: number;
+  date?: string | null;
+  categoryId?: string | null;
+  accountId?: string | null;
+  comment?: string | null;
+  excludeFromLimit?: boolean;
+}
+
+export function useSavePlanned() {
+  const { budgetId } = useBudget();
+  const invalidate = useInvalidateMoney();
+  return useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: PlannedInput }) =>
+      id ? patch<Planned>(`/budgets/${budgetId}/planned/${id}`, data) : post<Planned>(`/budgets/${budgetId}/planned`, data),
+    onSuccess: invalidate,
+  });
+}
+
+/** Действия с планом: отменить, вернуть из отменённых, удалить. */
+export function usePlannedAction() {
+  const { budgetId } = useBudget();
+  const invalidate = useInvalidateMoney();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'cancel' | 'restore' | 'delete' }) =>
+      action === 'delete' ? del(`/budgets/${budgetId}/planned/${id}`) : post(`/budgets/${budgetId}/planned/${id}/${action}`),
+    onSuccess: invalidate,
+  });
+}
+
+export function useReservePlanned() {
+  const { budgetId } = useBudget();
+  const invalidate = useInvalidateMoney();
+  return useMutation({
+    mutationFn: ({ id, mode, amount, accountId }: { id: string; mode: 'reserve' | 'release'; amount?: number; accountId?: string }) =>
+      mode === 'reserve'
+        ? post<Planned>(`/budgets/${budgetId}/planned/${id}/reserve`, { amount, fromAccountId: accountId })
+        : post(`/budgets/${budgetId}/planned/${id}/release`, { amount, toAccountId: accountId || null }),
+    onSuccess: invalidate,
   });
 }

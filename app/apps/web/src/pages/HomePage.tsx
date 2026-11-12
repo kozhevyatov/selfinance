@@ -4,12 +4,12 @@ import { MONTHS_DAT, MONTHS_PREP, monthRange, monthTitle, shiftMonth, todayISO }
 import { AccountsList, CapitalBlock, CategoryBars, DaysChart, MonthTotals, PanelLink } from '../components/HomeWidgets';
 import { TopBar, useTxSheet } from '../components/Layout';
 import { TxDays } from '../components/TxList';
-import { UpcomingPanel } from '../components/Upcoming';
+import { AfterPlans, AheadPanel, ForecastSheet } from '../components/Planned';
 import { LimitCard, LimitSheet } from '../components/Limits';
 import { useBudget } from '../lib/budget';
 import { useAuth } from '../lib/auth';
 import { useLookups } from '../lib/lookups';
-import { useCapital, useLimits, useSummary, useTransactions } from '../lib/queries';
+import { useCapital, useLimits, usePlanned, useSummary, useTransactions } from '../lib/queries';
 
 export function HomePage() {
   const { user } = useAuth();
@@ -26,6 +26,8 @@ export function HomePage() {
   const limits = useLimits(month);
   const { canEdit } = useBudget();
   const [limitOpen, setLimitOpen] = useState(false);
+  const planned = usePlanned();
+  const [forecastOpen, setForecastOpen] = useState(false);
 
   const prevIdx = Number(shiftMonth(month, -1).slice(5)) - 1;
   const prevLabel = { prep: MONTHS_PREP[prevIdx], dat: MONTHS_DAT[prevIdx] };
@@ -43,10 +45,13 @@ export function HomePage() {
         </button>
       </TopBar>
 
-      {capital.data ? <CapitalBlock capital={capital.data} /> : <div className="capital"><div className="skeleton" style={{ height: 90 }} /></div>}
+      {capital.data ? <CapitalBlock
+          capital={capital.data}
+          extra={planned.data && <AfterPlans data={planned.data} onOpen={() => setForecastOpen(true)} />}
+        /> : <div className="capital"><div className="skeleton" style={{ height: 90 }} /></div>}
 
       <div className="grid">
-        <UpcomingPanel l={l} />
+        <AheadPanel l={l} planned={planned.data} />
 
         {limits.data && <LimitCard data={limits.data} onEdit={canEdit ? () => setLimitOpen(true) : undefined} />}
 
@@ -99,6 +104,7 @@ export function HomePage() {
         </div>
       </div>
 
+      {forecastOpen && planned.data && <ForecastSheet data={planned.data} onClose={() => setForecastOpen(false)} />}
       {limitOpen && limits.data && l.ready && (
         <LimitSheet data={limits.data} l={l} month={curMonth} onClose={() => setLimitOpen(false)} />
       )}

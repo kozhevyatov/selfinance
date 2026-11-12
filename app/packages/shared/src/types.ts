@@ -73,6 +73,7 @@ export interface Transaction {
   createdBy: string;
   createdAt: string;
   recurringId: string | null;
+  plannedId: string | null;
 }
 
 export interface TxPage {
@@ -142,6 +143,54 @@ export interface UpcomingPayment {
   dueDate: string;
   daysLeft: number; // < 0 — просрочен
   match: Transaction | null; // похожая операция, внесённая вручную
+}
+
+export interface Planned {
+  id: string;
+  name: string;
+  amount: number;
+  date: string | null; // null — без даты
+  categoryId: string | null;
+  accountId: string | null;
+  comment: string | null;
+  status: 'active' | 'done' | 'cancelled';
+  excludeFromLimit: boolean;
+  reserveAccountId: string | null; // копилка «отложено под план»
+  reserved: number; // сколько сейчас отложено
+  transactionId: string | null; // операция покупки
+  doneAt: string | null;
+  createdAt: string;
+}
+
+/** Строка расшифровки прогноза: что и когда вычитается из свободных денег. */
+export interface ForecastStep {
+  kind: 'recurring' | 'planned';
+  id: string;
+  name: string;
+  date: string;
+  amount: number; // сколько вычитается (для плана — неотложенный остаток)
+  approx: boolean; // сумма регулярного платежа плавает
+  balanceAfter: number;
+}
+
+export interface PlannedItem extends Planned {
+  /** дней до даты; null — без даты; < 0 — просрочен */
+  daysLeft: number | null;
+  /** ещё нужно найти: сумма минус отложенное */
+  need: number;
+  /** сколько не хватает к дате (для плана без даты — относительно остатка после всех планов) */
+  shortfall: number;
+}
+
+export interface PlannedOverview {
+  free: number; // свободные деньги сейчас
+  /** остаток после всех датированных планов и регулярных платежей до последней даты; null — планов с датой нет */
+  afterPlans: number | null;
+  /** до какой даты посчитан прогноз */
+  horizon: string | null;
+  steps: ForecastStep[];
+  items: PlannedItem[]; // активные: с датой по порядку, затем без даты
+  history: Planned[]; // выполненные и отменённые, последние
 }
 
 export interface AdminUser {

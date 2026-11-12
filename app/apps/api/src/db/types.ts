@@ -116,6 +116,27 @@ export interface TransactionsTable {
   created_by: string;
   transfer_group_id: string | null;
   recurring_id: string | null;
+  planned_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface PlannedTable {
+  id: string;
+  budget_id: string;
+  name: string;
+  amount: number;
+  date: string | null;
+  category_id: string | null;
+  account_id: string | null;
+  comment: string | null;
+  status: 'active' | 'done' | 'cancelled';
+  exclude_from_limit: number;
+  reserve_account_id: string | null;
+  transaction_id: string | null;
+  done_at: string | null;
+  created_by: string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -170,4 +191,5 @@ export interface Database {
   transactions: TransactionsTable;
   recurring: RecurringTable;
   recurring_skips: RecurringSkipsTable;
+  planned: PlannedTable;
 }

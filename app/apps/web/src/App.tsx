@@ -14,6 +14,7 @@ import { SoonPage } from './pages/SoonPage';
 import { StatsPage } from './pages/StatsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { RecurringPage } from './pages/RecurringPage';
+import { PlannedPage } from './pages/PlannedPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { MorePage } from './pages/MorePage';
 
@@ -55,6 +56,7 @@ export function App() {
           <Route path="stats" element={<StatsPage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="recurring" element={<RecurringPage />} />
+          <Route path="planned" element={<PlannedPage />} />
           <Route path="budgets" element={<SoonPage title="Бюджеты" />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="more" element={<MorePage />} />

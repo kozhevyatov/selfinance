@@ -18,6 +18,7 @@ import statsRoutes from './routes/stats';
 import adminRoutes from './routes/admin';
 import recurringRoutes from './routes/recurring';
 import limitRoutes from './routes/limits';
+import plannedRoutes from './routes/planned';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // в контейнере: /app/api/server.js → /app/web; при разработке фронт отдаёт Vite
@@ -63,6 +64,7 @@ async function main() {
       await api.register(adminRoutes);
       await api.register(recurringRoutes);
       await api.register(limitRoutes);
+      await api.register(plannedRoutes);
     },
     { prefix: '/api/v1' },
   );

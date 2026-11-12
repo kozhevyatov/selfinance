@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Snowflake } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatMoney, moneyParts, type Account, type Capital, type LimitStatus, type Summary } from '@selfinance/shared';
@@ -7,7 +8,7 @@ import { Money } from './Money';
 
 /* ---------- Свободные деньги + полоса капитала ---------- */
 
-export function CapitalBlock({ capital }: { capital: Capital }) {
+export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: ReactNode }) {
   const p = moneyParts(capital.free, { forceKop: false });
   const free = capital.accounts.filter((a) => !a.isFrozen && a.balance > 0).sort((a, b) => b.balance - a.balance);
   const frozenTotal = capital.accounts.filter((a) => a.isFrozen && a.balance > 0).reduce((s, a) => s + a.balance, 0);
@@ -28,6 +29,7 @@ export function CapitalBlock({ capital }: { capital: Capital }) {
             {p.kop && <span className="kop">{p.kop}</span>}
             <span className="cur">₽</span>
           </div>
+          {extra}
         </div>
         {frozenCount > 0 && (
           <div className="cap-side">

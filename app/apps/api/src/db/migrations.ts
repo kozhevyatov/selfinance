@@ -199,6 +199,34 @@ migrations['0003_recurring_interval'] = {
   },
 };
 
+migrations['0004_planned'] = {
+  async up(db: Kysely<any>) {
+    // запланированные расходы: заметка о будущей покупке, опционально — с отложенными деньгами
+    await db.schema
+      .createTable('planned')
+      .addColumn('id', ID, (c) => c.primaryKey())
+      .addColumn('budget_id', ID, (c) => c.notNull())
+      .addColumn('name', 'varchar(100)', (c) => c.notNull())
+      .addColumn('amount', 'bigint', (c) => c.notNull())
+      .addColumn('date', 'varchar(10)')
+      .addColumn('category_id', ID)
+      .addColumn('account_id', ID)
+      .addColumn('comment', 'text')
+      .addColumn('status', 'varchar(16)', (c) => c.notNull().defaultTo('active'))
+      .addColumn('exclude_from_limit', 'integer', (c) => c.notNull().defaultTo(1))
+      .addColumn('reserve_account_id', ID)
+      .addColumn('transaction_id', ID)
+      .addColumn('done_at', TS)
+      .addColumn('created_by', ID, (c) => c.notNull())
+      .addColumn('created_at', TS, (c) => c.notNull())
+      .addColumn('updated_at', TS, (c) => c.notNull())
+      .addColumn('deleted_at', TS)
+      .execute();
+    await db.schema.createIndex('idx_planned_budget').on('planned').column('budget_id').execute();
+    await db.schema.alterTable('transactions').addColumn('planned_id', ID).execute();
+  },
+};
+
 class InlineProvider implements MigrationProvider {
   async getMigrations() {
     return migrations;

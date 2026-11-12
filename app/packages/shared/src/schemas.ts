@@ -135,6 +135,7 @@ export const txCreateSchema = z.object({
   categoryId: optId,
   comment: z.string().max(500).nullish(),
   recurringId: optId, // оплата регулярного платежа
+  plannedId: optId, // покупка по запланированному расходу (только при создании)
 });
 export type TxCreateInput = z.infer<typeof txCreateSchema>;
 export const txUpdateSchema = txCreateSchema.partial();
@@ -186,6 +187,29 @@ export const recurringUpdateSchema = z.object({
   isPaused: z.boolean().optional(),
 });
 export const recurringLinkSchema = z.object({ transactionId: id });
+
+/* ---------- запланированные расходы ---------- */
+
+export const plannedCreateSchema = z.object({
+  name: z.string().trim().min(1, 'Укажите название').max(100),
+  amount: z.number().int().positive('Сумма должна быть больше нуля'),
+  date: isoDate.nullish(), // без даты — «когда-нибудь»
+  categoryId: optId,
+  accountId: optId,
+  comment: z.string().max(500).nullish(),
+  excludeFromLimit: z.boolean().optional(),
+});
+export const plannedUpdateSchema = plannedCreateSchema.partial();
+export const plannedReserveSchema = z.object({
+  amount: z.number().int().positive('Сумма должна быть больше нуля'),
+  fromAccountId: id,
+  date: isoDate.optional(),
+});
+export const plannedReleaseSchema = z.object({
+  amount: z.number().int().positive().optional(), // по умолчанию — всё отложенное
+  toAccountId: optId,
+  date: isoDate.optional(),
+});
 
 /* ---------- админка ---------- */
 

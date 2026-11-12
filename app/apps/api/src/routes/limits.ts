@@ -83,6 +83,7 @@ export default async function limitRoutes(app: FastifyInstance) {
       .select([
         'category_id',
         sql<number>`case when recurring_id is null then 0 else 1 end`.as('is_rec'),
+        'planned_id',
         sql<number>`sum(amount)`.as('total'),
       ])
       .where('budget_id', '=', budgetId)
@@ -90,8 +91,13 @@ export default async function limitRoutes(app: FastifyInstance) {
       .where('type', '=', 'expense')
       .where('date', '>=', from)
       .where('date', '<=', to)
-      .groupBy(['category_id', sql`case when recurring_id is null then 0 else 1 end`])
+      .groupBy(['category_id', sql`case when recurring_id is null then 0 else 1 end`, 'planned_id'])
       .execute();
+
+    // планы с отметкой «не учитывать в лимите» (в том числе удалённые из истории)
+    const plannedExcluded = new Set(
+      (await db.selectFrom('planned').select('id').where('budget_id', '=', budgetId).where('exclude_from_limit', '=', 1).execute()).map((p) => p.id),
+    );
 
     let overallSpent = 0;
     let recurringPaid = 0;
@@ -100,6 +106,8 @@ export default async function limitRoutes(app: FastifyInstance) {
       const amount = num(r.total);
       const rec = num(r.is_rec) === 1;
       if (rec) recurringPaid += amount;
+      // покупки по плану с отметкой «не учитывать в лимите» не входят ни в один лимит
+      if (r.planned_id && plannedExcluded.has(r.planned_id)) continue;
       const top = topOf(r.category_id);
       byTop.set(top, (byTop.get(top) ?? 0) + amount);
       if ((!rec || includeRecurring) && !isExcluded(r.category_id)) overallSpent += amount;

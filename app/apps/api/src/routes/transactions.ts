@@ -7,6 +7,7 @@ import { requireUser } from '../lib/auth';
 import { badRequest, notFound, nowIso, uuidv7 } from '../lib/util';
 import { getAccount } from '../services/accounts';
 import { requireBudget } from '../services/budgets';
+import { completePlan, getPlan, reopenPlan } from '../services/planned';
 import { getRule, recomputeRule } from '../services/recurring';
 
 type P = { budgetId: string; txId: string };
@@ -25,6 +26,7 @@ export function toTx(t: TransactionsTable): Transaction {
     createdBy: t.created_by,
     createdAt: t.created_at,
     recurringId: t.recurring_id,
+    plannedId: t.planned_id ?? null,
   };
 }
 
@@ -154,11 +156,18 @@ export default async function transactionRoutes(app: FastifyInstance) {
     await requireBudget(db, budgetId, user.id, 'member');
     const input = txCreateSchema.parse(req.body);
     const fields = await validateTx(db, budgetId, input);
+    const plan = input.plannedId ? await getPlan(db, budgetId, input.plannedId) : undefined;
+    if (input.plannedId) {
+      if (!plan) throw badRequest('План не найден', { plannedId: 'План не найден' });
+      if (plan.status !== 'active') throw badRequest('Этот план уже выполнен или отменён');
+      if (input.type !== 'expense') throw badRequest('Покупка по плану — это расход');
+    }
     const now = nowIso();
     const row: TransactionsTable = {
       id: uuidv7(),
       budget_id: budgetId,
       ...fields,
+      planned_id: plan?.id ?? null,
       created_by: user.id,
       transfer_group_id: null,
       created_at: now,
@@ -167,6 +176,7 @@ export default async function transactionRoutes(app: FastifyInstance) {
     };
     await db.insertInto('transactions').values(row).execute();
     await recomputeRule(db, row.recurring_id);
+    if (plan) await completePlan(db, plan, row, user.id);
     return toTx(row);
   });
 
@@ -206,6 +216,7 @@ export default async function transactionRoutes(app: FastifyInstance) {
     const now = nowIso();
     await db.updateTable('transactions').set({ deleted_at: now, updated_at: now }).where('id', '=', txId).execute();
     await recomputeRule(db, tx.recurring_id);
+    await reopenPlan(db, tx.planned_id, tx.id);
     return { ok: true };
   });
 }
