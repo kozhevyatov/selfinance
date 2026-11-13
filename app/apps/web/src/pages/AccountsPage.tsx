@@ -41,8 +41,11 @@ export function AccountsPage() {
               <div><span>Всего</span><b><Money value={capital.data.total} /></b></div>
             </div>
           </div>
+          {capital.data.creditInFree > 0 && (
+            <div className="cap-credit">в том числе <Money value={capital.data.creditInFree} round /> по кредиткам</div>
+          )}
           {capital.data.creditAvailable > 0 && (
-            <div className="cap-credit">+ <Money value={capital.data.creditAvailable} round /> доступно по кредиткам</div>
+            <div className="cap-credit">+ <Money value={capital.data.creditAvailable} round /> доступно по {capital.data.creditInFree > 0 ? 'другим ' : ''}кредиткам</div>
           )}
         </div>
       )}
@@ -92,6 +95,7 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
   const [isFrozen, setIsFrozen] = useState(account?.isFrozen ?? false);
   const [frozenTouched, setFrozenTouched] = useState(!!account);
   const [note, setNote] = useState(account?.note ?? '');
+  const [includeInFree, setIncludeInFree] = useState(account?.includeInFree ?? false);
   const [creditLimit, setCreditLimit] = useState(account?.creditLimit ? amountToInput(account.creditLimit) : '');
   const [initial, setInitial] = useState('');
   // у кредитов вводим долг положительным числом, храним отрицательным балансом
@@ -121,6 +125,7 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
           kind,
           isFrozen: credit ? false : isFrozen,
           creditLimit: kind === 'credit' ? limit : null,
+          includeInFree: kind === 'credit' && includeInFree,
           bankName: kind === 'cash' ? null : bankName.trim() || null,
           note: note.trim() || null,
           ...(account ? {} : { initialBalance: credit ? -Math.abs(init) : init }),
@@ -232,7 +237,7 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
         {credit ? (
           <p className="hint" style={{ marginTop: 0 }}>
             {kind === 'credit'
-              ? 'Кредитка: доступный лимит показывается отдельно и не входит в свободные деньги. Покупки — обычные расходы, погашение — перевод на карту.'
+              ? 'Кредитка: покупки — обычные расходы, погашение — перевод на карту. Долг вычитается из капитала.'
               : 'Кредит или ипотека: долг вычитается из капитала. Платёж по кредиту — перевод на этот счёт, проценты — отдельный расход.'}
           </p>
         ) : (
@@ -253,6 +258,18 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
             <input className="input num" inputMode="decimal" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} placeholder="Например, 100 000" />
             {fields.creditLimit && <span className="field-error">{fields.creditLimit}</span>}
           </label>
+        )}
+
+        {kind === 'credit' && (
+          <div className="choice" style={{ marginBottom: 16 }}>
+            <label>
+              <input type="checkbox" checked={includeInFree} onChange={(e) => setIncludeInFree(e.target.checked)} />
+              <span>
+                <b>Учитывать в доступных средствах</b>
+                <small>Доступный лимит прибавится к свободным деньгам на главной и в прогнозе планов. Капитал («Всего») от этого не меняется.</small>
+              </span>
+            </label>
+          </div>
         )}
 
         {!account && (

@@ -46,6 +46,7 @@ export interface Account {
   sort: number;
   isArchived: boolean;
   creditLimit: number | null;
+  includeInFree: boolean; // кредитка: доступный лимит прибавляется к свободным деньгам
   balance: number; // у кредитов отрицательный = долг
 }
 
@@ -109,10 +110,11 @@ export interface Summary {
 }
 
 export interface Capital {
-  free: number; // только свои деньги
+  free: number; // свои деньги + лимиты кредиток с галочкой «учитывать в доступных»
+  creditInFree: number; // сколько из free — кредитные деньги
   frozen: number;
   debt: number; // долг по кредиткам и кредитам, положительное число
-  creditAvailable: number; // сколько ещё можно потратить с кредиток
+  creditAvailable: number; // доступно по кредиткам, не включённым в свободные
   total: number; // свободные + замороженные − долг
   accounts: Account[];
 }

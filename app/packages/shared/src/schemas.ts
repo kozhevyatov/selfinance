@@ -90,6 +90,7 @@ export const accountCreateSchema = z.object({
   icon: z.string().max(32).nullish(),
   note: z.string().max(1000).nullish(),
   creditLimit: z.number().int().min(0).nullish(), // копейки, только для кредитной карты
+  includeInFree: z.boolean().optional(), // кредитка: учитывать доступный лимит в свободных деньгах
   initialBalance: z.number().int().optional(), // копейки
 });
 export const accountUpdateSchema = accountCreateSchema.omit({ initialBalance: true }).partial().extend({

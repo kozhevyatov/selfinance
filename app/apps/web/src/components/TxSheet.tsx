@@ -99,6 +99,24 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
   const selectedTop = selected?.parentId ? l.category(selected.parentId) : selected;
   const subs = selectedTop ? l.categories.filter((c) => c.parentId === selectedTop.id && (!c.isArchived || c.id === categoryId)) : [];
 
+  // сколько колонок в сетке категорий — чтобы вставить подкатегории после нужного ряда
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [cols, setCols] = useState(4);
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const measure = () => {
+      const n = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length;
+      if (n > 0) setCols(n);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [type]);
+  const selIdx = selectedTop ? tops.findIndex((c) => c.id === selectedTop.id) : -1;
+  const subsAfter = selIdx >= 0 && subs.length > 0 ? Math.min(tops.length - 1, Math.floor(selIdx / cols) * cols + cols - 1) : -1;
+
   const switchType = (t: TxType) => {
     setType(t);
     if (selected && selected.type !== (t === 'income' ? 'income' : 'expense')) setCategoryId(null);
@@ -223,37 +241,50 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
         {(type === 'income' || type === 'expense') && (
           <div className="sheet-section">
             <span className="label">Категория{fields.categoryId && <span className="exp"> — {fields.categoryId}</span>}</span>
-            <div className="cat-grid">
-              {tops.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="cat-cell"
-                  aria-pressed={selectedTop?.id === c.id}
-                  onClick={() => pickTop(c.id)}
-                >
-                  <span className="cat-ic sm" style={{ ['--c' as string]: c.color ?? 'var(--ink-2)' }}>
-                    <CatIcon name={c.icon} size={16} />
-                  </span>
-                  {c.name}
-                </button>
-              ))}
-            </div>
-            {subs.length > 0 && (
-              <div className="chips subcats">
-                {subs.map((s) => (
+            <div className="cat-grid" ref={gridRef}>
+              {tops.map((c, i) => {
+                const cell = (
                   <button
-                    key={s.id}
+                    key={c.id}
                     type="button"
-                    className="chip"
-                    aria-pressed={categoryId === s.id}
-                    onClick={() => setCategoryId(categoryId === s.id ? selectedTop!.id : s.id)}
+                    className="cat-cell"
+                    aria-pressed={selectedTop?.id === c.id}
+                    aria-expanded={selectedTop?.id === c.id && subs.length > 0 ? true : undefined}
+                    onClick={() => pickTop(c.id)}
                   >
-                    {s.name}
+                    <span className="cat-ic sm" style={{ ['--c' as string]: c.color ?? 'var(--ink-2)' }}>
+                      <CatIcon name={c.icon} size={16} />
+                    </span>
+                    {c.name}
                   </button>
-                ))}
-              </div>
-            )}
+                );
+                // подкатегории раскрываются отдельной строкой сразу под рядом выбранной категории
+                if (i !== subsAfter) return cell;
+                return [
+                  cell,
+                  <div
+                    key="subs"
+                    className="cat-subs-inline"
+                    style={{ ['--arrow' as string]: `${((selIdx % cols) + 0.5) / cols * 100}%`, ['--c' as string]: selectedTop?.color ?? 'var(--accent)' }}
+                  >
+                    <div className="cat-subs-title">{selectedTop?.name}: подкатегория</div>
+                    <div className="chips">
+                      {subs.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className="chip"
+                          aria-pressed={categoryId === s.id}
+                          onClick={() => setCategoryId(categoryId === s.id ? selectedTop!.id : s.id)}
+                        >
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>,
+                ];
+              })}
+            </div>
           </div>
         )}
 

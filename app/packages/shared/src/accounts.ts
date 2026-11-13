@@ -14,19 +14,24 @@ export const creditAvailableOf = (a: Pick<Account, 'kind' | 'balance' | 'creditL
 /**
  * Разбивка капитала. Переплата по кредитке (положительный баланс) — свои деньги,
  * поэтому идёт в свободные; долг вычитается из итога, но не из свободных.
+ * Доступный лимит кредитки с галочкой «учитывать в доступных средствах» прибавляется
+ * к свободным деньгам (creditInFree), остальные лимиты показываются отдельно (creditAvailable).
+ * «Всего» считается только по своим деньгам.
  */
 export function splitCapital(accounts: Account[]): Omit<Capital, 'accounts'> {
-  let free = 0;
+  let own = 0;
   let frozen = 0;
   let debt = 0;
   let creditAvailable = 0;
+  let creditInFree = 0;
   for (const a of accounts) {
     if (isCredit(a)) {
-      if (a.balance > 0) free += a.balance;
+      if (a.balance > 0) own += a.balance;
       debt += debtOf(a);
-      creditAvailable += creditAvailableOf(a);
+      if (a.kind === 'credit' && a.includeInFree) creditInFree += creditAvailableOf(a);
+      else creditAvailable += creditAvailableOf(a);
     } else if (a.isFrozen) frozen += a.balance;
-    else free += a.balance;
+    else own += a.balance;
   }
-  return { free, frozen, debt, creditAvailable, total: free + frozen - debt };
+  return { free: own + creditInFree, creditInFree, frozen, debt, creditAvailable, total: own + frozen - debt };
 }

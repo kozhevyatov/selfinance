@@ -47,6 +47,7 @@ export function toAccount(a: AccountsTable, balance: number): Account {
     sort: a.sort,
     isArchived: !!a.is_archived,
     creditLimit: a.kind === 'credit' && a.credit_limit != null ? num(a.credit_limit) : null,
+    includeInFree: a.kind === 'credit' && !!a.include_in_free,
     balance,
   };
 }

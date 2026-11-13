@@ -4,10 +4,13 @@ import type { Category } from '@selfinance/shared';
 import { TopBar } from '../components/Layout';
 import { ApiError } from '../lib/api';
 import { useBudget } from '../lib/budget';
-import { CatIcon, ICONS } from '../lib/icons';
+import { CatIcon, PICKABLE_ICONS } from '../lib/icons';
 import { useCategories, useDeleteCategory, useSaveCategory } from '../lib/queries';
 
-const PALETTE = ['#16A34A', '#0D9488', '#0891B2', '#2563EB', '#4F46E5', '#7C3AED', '#9333EA', '#DB2777', '#E11D48', '#DC2626', '#E8892E', '#CA8A04', '#0F9F9F', '#6B7280'];
+const PALETTE = [
+  '#16A34A', '#65A30D', '#059669', '#0D9488', '#0F9F9F', '#0891B2', '#0284C7', '#2563EB', '#4F46E5', '#7C3AED', '#9333EA',
+  '#C026D3', '#DB2777', '#BE185D', '#E11D48', '#DC2626', '#EA580C', '#E8892E', '#CA8A04', '#A16207', '#6B7280', '#334155',
+];
 
 type Editing = { cat: Category | null; type: 'income' | 'expense'; parentId: string | null };
 
@@ -174,7 +177,7 @@ function CategorySheet({ editing, all, onClose, onAddSub }: { editing: Editing; 
         <div className="sheet-section">
           <span className="label">Иконка</span>
           <div className="icon-grid">
-            {Object.keys(ICONS).map((k) => (
+            {PICKABLE_ICONS.map((k) => (
               <button key={k} type="button" aria-pressed={icon === k} onClick={() => setIcon(k)} aria-label={k}>
                 <CatIcon name={k} size={18} />
               </button>

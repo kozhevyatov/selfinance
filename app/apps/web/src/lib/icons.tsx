@@ -31,6 +31,24 @@ import {
   Baby,
   Dumbbell,
   Scissors,
+  ArrowLeftRight,
+  Utensils,
+  Pizza,
+  Beer,
+  Pill,
+  BookOpen,
+  Music,
+  Clapperboard,
+  TrainFront,
+  Bike,
+  Wifi,
+  Zap,
+  Flame,
+  Sofa,
+  Hammer,
+  Flower2,
+  Umbrella,
+  Cigarette,
 } from 'lucide-react';
 
 /** Ключ иконки в БД → компонент. Ключи короткие и не зависят от версии lucide. */
@@ -67,7 +85,29 @@ export const ICONS: Record<string, typeof ShoppingCart> = {
   kids: Baby,
   sport: Dumbbell,
   beauty: Scissors,
+  food: Utensils,
+  pizza: Pizza,
+  beer: Beer,
+  pill: Pill,
+  book: BookOpen,
+  music: Music,
+  movie: Clapperboard,
+  train: TrainFront,
+  bike: Bike,
+  wifi: Wifi,
+  power: Zap,
+  gas: Flame,
+  sofa: Sofa,
+  repair: Hammer,
+  flower: Flower2,
+  umbrella: Umbrella,
+  smoke: Cigarette,
+  swap: ArrowLeftRight,
 };
+
+/** Служебные иконки (переводы и т. п.) — в выборе иконки категории не показываются. */
+const SYSTEM_ICONS = new Set(['swap']);
+export const PICKABLE_ICONS = Object.keys(ICONS).filter((k) => !SYSTEM_ICONS.has(k));
 
 export function CatIcon({ name, size = 19 }: { name: string | null | undefined; size?: number }) {
   const I = (name && ICONS[name]) || MoreHorizontal;

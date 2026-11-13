@@ -54,6 +54,9 @@
 
 * { box-sizing: border-box }
 html, body { margin: 0 }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overflow-x: clip }
+/* пока открыто окно поверх (sheet), фон не прокручивается */
+html:has(.overlay), html:has(.overlay) body { overflow: hidden; overscroll-behavior: none }
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -287,12 +290,12 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 
 /* ===== Окно операции (sheet) ===== */
 .overlay {
-  position: fixed; inset: 0; z-index: 50; background: rgba(15, 17, 21, .42);
+  position: fixed; inset: 0; z-index: 50; background: rgba(15, 17, 21, .42); overscroll-behavior: contain;
   display: grid; place-items: center; padding: 20px;
   animation: fade .15s ease-out;
 }
 .sheet {
-  width: 100%; max-width: 520px; max-height: calc(100vh - 40px); overflow: auto;
+  width: 100%; max-width: 520px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   background: var(--surface); border-radius: var(--radius-l); box-shadow: var(--shadow-pop); padding: 22px 24px 24px;
   animation: pop .18s cubic-bezier(.2, .8, .2, 1);
 }
@@ -310,7 +313,19 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 }
 .cat-cell:hover { background: var(--surface-2) }
 .cat-cell[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink) }
-.subcats { margin: 4px 0 12px }
+.cat-subs-inline {
+  grid-column: 1 / -1; position: relative; margin: 4px 0 6px; padding: 12px;
+  border-radius: var(--radius-m); background: color-mix(in oklab, var(--c) 10%, var(--surface));
+  border: 1.5px solid color-mix(in oklab, var(--c) 35%, transparent);
+  animation: fade .15s ease-out;
+}
+.cat-subs-inline::before {
+  content: ''; position: absolute; top: -8px; left: var(--arrow); width: 14px; height: 14px; transform: translateX(-50%) rotate(45deg);
+  background: inherit; border-left: inherit; border-top: inherit; border-top-left-radius: 3px;
+}
+.cat-subs-title { font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; font-weight: 500 }
+.cat-subs-inline .chip { background: var(--surface) }
+.cat-subs-inline .chip[aria-pressed="true"] { background: var(--c); color: #fff; border-color: transparent }
 .sheet-section { margin-bottom: 16px }
 .sheet-section > .label { font-size: 13px; color: var(--ink-2); font-weight: 500; margin-bottom: 8px; display: block }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
@@ -382,7 +397,7 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
   .days-chart { height: 76px }
   .overlay { place-items: end center; padding: 0 }
   .sheet {
-    max-width: none; border-radius: 22px 22px 0 0; max-height: 92vh;
+    max-width: none; border-radius: 22px 22px 0 0; max-height: 92vh; max-height: 92dvh;
     padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
     animation: up .22s cubic-bezier(.2, .8, .2, 1);
   }
@@ -637,7 +652,14 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .acc-group h3.crd { color: var(--credit) }
 .tx-sum.crd { color: var(--credit) }
 .cap-credit { margin-top: 6px; font-size: 13px; color: var(--credit); font-weight: 500 }
+.cap-credit + .cap-credit { margin-top: 2px }
+.seg-credit { color: var(--credit); background: repeating-linear-gradient(-45deg, color-mix(in oklab, var(--credit) 22%, transparent) 0 2px, transparent 2px 9px), var(--credit-soft) }
 .credit-bar { margin-top: 10px; height: 8px; border-radius: 99px; background: var(--credit-soft); overflow: hidden }
 .credit-bar i { display: block; height: 100%; border-radius: 99px; background: var(--credit) }
 .segmented.wrap { flex-wrap: wrap; border-radius: 18px }
 .segmented.wrap button { flex: 1 1 28%; white-space: nowrap }
+
+/* iOS увеличивает страницу при фокусе на поле со шрифтом меньше 16px — на телефонах поля 16px */
+@media (pointer: coarse) {
+  .input, .select, .textarea, input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px }
+}

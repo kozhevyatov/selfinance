@@ -265,6 +265,13 @@ migrations['0006_credit'] = {
   },
 };
 
+migrations['0007_credit_in_free'] = {
+  async up(db: Kysely<any>) {
+    // кредитка: учитывать доступный лимит в свободных деньгах
+    await db.schema.alterTable('accounts').addColumn('include_in_free', 'integer', (c) => c.notNull().defaultTo(0)).execute();
+  },
+};
+
 class InlineProvider implements MigrationProvider {
   async getMigrations() {
     return migrations;

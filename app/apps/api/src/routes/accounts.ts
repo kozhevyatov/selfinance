@@ -34,6 +34,7 @@ export default async function accountRoutes(app: FastifyInstance) {
       // кредитные счета не бывают замороженными
       is_frozen: !isCreditKind(input.kind) && (input.isFrozen ?? (input.kind === 'deposit' || input.kind === 'savings')) ? 1 : 0,
       credit_limit: input.kind === 'credit' ? input.creditLimit ?? null : null,
+      include_in_free: input.kind === 'credit' && input.includeInFree ? 1 : 0,
       parent_account_id: input.parentAccountId ?? null,
       bank_name: input.bankName ?? null,
       color: input.color ?? null,
@@ -79,7 +80,8 @@ export default async function accountRoutes(app: FastifyInstance) {
     if (input.note !== undefined) patch.note = input.note ?? null;
     const kind = input.kind ?? acc.kind;
     if (input.creditLimit !== undefined) patch.credit_limit = input.creditLimit ?? null;
-    if (kind !== 'credit') patch.credit_limit = null;
+    if (input.includeInFree !== undefined) patch.include_in_free = input.includeInFree ? 1 : 0;
+    if (kind !== 'credit') { patch.credit_limit = null; patch.include_in_free = 0; }
     if (isCreditKind(kind)) patch.is_frozen = 0;
     if (input.isArchived !== undefined) patch.is_archived = input.isArchived ? 1 : 0;
     if (input.sort !== undefined) patch.sort = input.sort;

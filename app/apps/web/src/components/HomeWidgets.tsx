@@ -15,8 +15,9 @@ export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: Rea
   const frozenCount = capital.accounts.filter((a) => a.isFrozen).length;
   const shown = free.slice(0, 3);
   const rest = free.slice(3).reduce((s, a) => s + a.balance, 0);
-  const barTotal = free.reduce((s, a) => s + a.balance, 0) + frozenTotal;
-  const showBar = barTotal > 0 && (free.length > 1 || frozenTotal > 0);
+  const credit = capital.creditInFree;
+  const barTotal = free.reduce((s, a) => s + a.balance, 0) + credit + frozenTotal;
+  const showBar = barTotal > 0 && (free.length > 1 || frozenTotal > 0 || credit > 0);
   const pct = (v: number) => Math.round((v / barTotal) * 100);
 
   return (
@@ -29,8 +30,11 @@ export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: Rea
             {p.kop && <span className="kop">{p.kop}</span>}
             <span className="cur">₽</span>
           </div>
+          {credit > 0 && (
+            <div className="cap-credit">в том числе <Money value={credit} round /> по кредиткам</div>
+          )}
           {capital.creditAvailable > 0 && (
-            <div className="cap-credit">+ <Money value={capital.creditAvailable} round /> доступно по кредиткам</div>
+            <div className="cap-credit">+ <Money value={capital.creditAvailable} round /> доступно по {credit > 0 ? 'другим ' : ''}кредиткам</div>
           )}
           {extra}
         </div>
@@ -45,13 +49,19 @@ export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: Rea
 
       {showBar && (
         <>
-          <div className="bar" role="img" aria-label={`В обороте ${formatMoney(capital.free)}, заморожено ${formatMoney(capital.frozen)}`}>
+          <div className="bar" role="img" aria-label={`В обороте ${formatMoney(capital.free - credit)}${credit ? `, по кредиткам ${formatMoney(credit)}` : ''}, заморожено ${formatMoney(capital.frozen)}`}>
             {shown.map((a, i) => (
               <div key={a.id} className={'seg seg-free' + (i ? ` s${i + 1}` : '')} style={{ flex: a.balance }} title={`${a.name}: ${formatMoney(a.balance)}`}>
                 <span>{a.name}</span>
               </div>
             ))}
             {rest > 0 && <div className="seg seg-free s4" style={{ flex: rest }} title={`Остальные: ${formatMoney(rest)}`} />}
+            {credit > 0 && (
+              <div className="seg seg-credit" style={{ flex: credit }} title={`Доступно по кредиткам: ${formatMoney(credit)}`}>
+                <CreditCard size={16} style={{ flex: 'none' }} />
+                <span>Кредитки</span>
+              </div>
+            )}
             {frozenTotal > 0 && (
               <div className="seg seg-ice" style={{ flex: frozenTotal }} title={`Заморожено: ${formatMoney(frozenTotal)}`}>
                 <Snowflake size={16} style={{ flex: 'none' }} />
@@ -59,10 +69,11 @@ export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: Rea
               </div>
             )}
           </div>
-          {frozenTotal > 0 && (
+          {(frozenTotal > 0 || credit > 0) && (
             <div className="legend">
-              <span><i style={{ background: 'var(--accent)' }} />В обороте {100 - pct(frozenTotal)}%</span>
-              <span><i style={{ background: 'var(--frozen)' }} />Заморожено {pct(frozenTotal)}%</span>
+              <span><i style={{ background: 'var(--accent)' }} />В обороте {100 - pct(frozenTotal) - pct(credit)}%</span>
+              {credit > 0 && <span><i style={{ background: 'var(--credit)' }} />Кредитки {pct(credit)}%</span>}
+              {frozenTotal > 0 && <span><i style={{ background: 'var(--frozen)' }} />Заморожено {pct(frozenTotal)}%</span>}
             </div>
           )}
         </>
@@ -325,7 +336,7 @@ export function bankBadge(a: Account) {
 function creditSub(a: Account) {
   const parts: string[] = [];
   if (a.bankName) parts.push(a.bankName);
-  if (a.kind === 'credit' && a.creditLimit) parts.push(`доступно ${formatMoney(creditAvailableOf(a))} из ${formatMoney(a.creditLimit)}`);
+  if (a.kind === 'credit' && a.creditLimit) parts.push(`доступно ${formatMoney(creditAvailableOf(a))} из ${formatMoney(a.creditLimit)}${a.includeInFree ? ' (в свободных)' : ''}`);
   else if (a.kind === 'credit') parts.push('кредитка');
   else parts.push(debtOf(a) ? 'кредит' : 'кредит погашен');
   if (a.note) parts.push(a.note);

@@ -75,6 +75,7 @@ export interface AccountsTable {
   kind: 'cash' | 'bank' | 'deposit' | 'savings' | 'credit' | 'loan';
   is_frozen: number;
   credit_limit?: number | null;
+  include_in_free?: number;
   parent_account_id: string | null;
   bank_name: string | null;
   color: string | null;
