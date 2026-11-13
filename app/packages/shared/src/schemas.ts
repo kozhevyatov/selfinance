@@ -194,6 +194,7 @@ export const recurringLinkSchema = z.object({ transactionId: id });
 /* ---------- запланированные расходы ---------- */
 
 export const plannedCreateSchema = z.object({
+  type: z.enum(['income', 'expense']).optional(), // по умолчанию расход
   name: z.string().trim().min(1, 'Укажите название').max(100),
   amount: z.number().int().positive('Сумма должна быть больше нуля'),
   date: isoDate.nullish(), // без даты — «когда-нибудь»

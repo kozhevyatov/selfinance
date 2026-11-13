@@ -632,6 +632,14 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .plan-actions .more-item { width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; font: inherit; color: inherit; cursor: pointer }
 .plan-actions .more-item:first-child { border-top: 0 }
 .plan-ico-buy { background: var(--accent-soft); color: var(--accent) }
+.plan-ico-get { background: var(--income-soft); color: var(--income) }
+.fc-sum.inc { color: var(--income) }
+.total small.expect { color: var(--ink-2) }
+.total small.expect b { color: var(--income); font-weight: 600 }
+.expect-box { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--income-soft); font-size: 14px }
+.expect-box .ex-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0 }
+.expect-box .ex-total { font-weight: 650; border-top: 1px solid color-mix(in srgb, var(--income) 25%, transparent); margin-top: 6px; padding-top: 6px }
+.expect-box .ex-total .num { color: var(--income) }
 .after-plans {
   display: inline-block; margin-top: 10px; padding: 4px 12px; border-radius: 999px; border: 0; cursor: pointer;
   font: inherit; font-size: 14px; color: var(--ink-2); background: var(--surface-2);
@@ -663,3 +671,28 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 @media (pointer: coarse) {
   .input, .select, .textarea, input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px }
 }
+
+/* ---------- офлайн и обновления ---------- */
+.offline-bar {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 9px 14px;
+  border-radius: 12px; background: var(--surface-2); color: var(--ink-2); font-size: 13px;
+}
+.offline-bar svg { flex: none }
+.tab-ico { position: relative; display: inline-flex }
+.tab-dot { position: absolute; top: -2px; right: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface) }
+.side-update { color: var(--accent) !important }
+.ver-line { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; margin: 18px 0 8px; font-size: 13px; text-align: center }
+.ver-check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px }
+.spin { animation: sf-spin 1s linear infinite }
+@keyframes sf-spin { to { transform: rotate(360deg) } }
+.update-card { margin-top: 16px; padding: 16px; border-radius: 16px; background: var(--accent-soft); display: grid; gap: 10px; justify-items: start }
+.update-head { display: flex; gap: 12px; align-items: flex-start; color: var(--accent) }
+.update-head svg { flex: none; margin-top: 1px }
+.update-head b { display: block; color: var(--ink) }
+.update-head small { color: var(--ink-2); font-size: 13px }
+.update-notes { font-size: 13px; width: 100% }
+.update-notes ul { margin: 4px 0 8px; padding-left: 18px }
+.update-how { margin: 0; font-size: 13px }
+.update-cmd { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 6px 6px 12px; border-radius: 10px; background: var(--surface) }
+.update-cmd code { flex: 1; font-size: 13px; overflow-x: auto; white-space: nowrap }
+.update-foot { display: flex; gap: 16px; flex-wrap: wrap; align-items: center }

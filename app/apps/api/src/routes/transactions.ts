@@ -160,7 +160,8 @@ export default async function transactionRoutes(app: FastifyInstance) {
     if (input.plannedId) {
       if (!plan) throw badRequest('План не найден', { plannedId: 'План не найден' });
       if (plan.status !== 'active') throw badRequest('Этот план уже выполнен или отменён');
-      if (input.type !== 'expense') throw badRequest('Покупка по плану — это расход');
+      const planType = plan.type ?? 'expense';
+      if (input.type !== planType) throw badRequest(planType === 'income' ? 'Поступление по плану — это доход' : 'Покупка по плану — это расход');
     }
     const now = nowIso();
     const row: TransactionsTable = {

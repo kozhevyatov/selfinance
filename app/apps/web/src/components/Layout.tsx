@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
-import { BarChart3, CalendarClock, ChevronDown, Home, List, LogOut, Menu, Moon, Plus, Repeat, Settings, Sun, Tag, Users, Wallet } from 'lucide-react';
+import { ArrowUpCircle, BarChart3, CalendarClock, ChevronDown, Home, List, LogOut, Menu, Moon, Plus, Repeat, Settings, Sun, Tag, Users, Wallet } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
 import { getTheme, toggleTheme } from '../lib/theme';
 import { TxSheet, type TxSheetOptions } from './TxSheet';
+import { OfflineBar, useUpdateBadge } from './UpdateInfo';
 
 const SheetCtx = createContext<(o?: TxSheetOptions) => void>(() => undefined);
 export const useTxSheet = () => useContext(SheetCtx);
@@ -28,6 +29,7 @@ export function Layout() {
   const close = useCallback(() => setSheet(null), []);
   const [params, setParams] = useSearchParams();
   const { pathname } = useLocation();
+  const updateBadge = useUpdateBadge();
   const moreActive = ['/more', '/accounts', '/recurring', '/planned', '/categories', '/budgets', '/settings'].some((p) => pathname.startsWith(p));
 
   // ярлык «Добавить операцию» с иконки приложения: /?add=1
@@ -57,6 +59,12 @@ export function Layout() {
           </nav>
           <div className="side-foot nav">
             <div className="side-user">{user?.name}</div>
+            {updateBadge && (
+              <NavLink to="/more" title="Доступно обновление сервера" className="side-update">
+                <ArrowUpCircle size={20} strokeWidth={1.8} />
+                <span>Есть обновление</span>
+              </NavLink>
+            )}
             <NavLink to="/settings" title="Настройки">
               <Settings size={20} strokeWidth={1.8} />
               <span>Настройки</span>
@@ -69,6 +77,7 @@ export function Layout() {
         </aside>
 
         <main className="page">
+          <OfflineBar />
           <Outlet />
         </main>
       </div>
@@ -82,7 +91,7 @@ export function Layout() {
           </button>
         ) : <span />}
         <NavLink to="/stats"><BarChart3 size={20} strokeWidth={1.8} />Статистика</NavLink>
-        <NavLink to="/more" className={() => (moreActive ? 'active' : '')}><Menu size={20} strokeWidth={1.8} />Ещё</NavLink>
+        <NavLink to="/more" className={() => (moreActive ? 'active' : '')}><span className="tab-ico"><Menu size={20} strokeWidth={1.8} />{updateBadge && <i className="tab-dot" aria-label="Есть обновление" />}</span>Ещё</NavLink>
       </nav>
 
       {sheet && <TxSheet opts={sheet} onClose={close} />}

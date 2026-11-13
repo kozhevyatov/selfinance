@@ -104,6 +104,7 @@ export function MonthTotals({ s, prevLabel }: { s: Summary; prevLabel: PrevLabel
         <span>Приход</span>
         <b><Money value={s.income} round /></b>
         {delta(s.income, cmp.income, false, prevLabel)}
+        <ExpectedLine s={s} />
       </div>
       <div className="total t-out">
         <span>Расход</span>
@@ -126,6 +127,39 @@ export function MonthTotals({ s, prevLabel }: { s: Summary; prevLabel: PrevLabel
   );
 }
 
+/* ---------- Ожидаемый доход ---------- */
+
+const periodWord = (s: Summary) => (s.daysTotal > 31 ? 'периода' : 'месяца');
+
+/** Маленькая строка под «Приходом»: сколько ожидается к концу месяца с учётом планов и регулярных доходов. */
+function ExpectedLine({ s }: { s: Summary }) {
+  const e = s.expectedIncome;
+  if (!e || e.total <= e.received) return null;
+  return (
+    <small className="expect">
+      ожидается <b><Money value={e.total} round /></b> к концу {periodWord(s)}
+    </small>
+  );
+}
+
+/** Расшифровка ожидаемого дохода — для статистики. */
+export function ExpectedIncomeBox({ s }: { s: Summary }) {
+  const e = s.expectedIncome;
+  if (!e || e.total <= e.received) return null;
+  return (
+    <div className="expect-box" aria-label="Ожидаемый доход">
+      <div className="ex-row"><span>Уже пришло</span><Money value={e.received} round /></div>
+      {e.planned > 0 && (
+        <div className="ex-row"><span>Запланированные доходы</span><span>+<Money value={e.planned} round /></span></div>
+      )}
+      {e.recurring > 0 && (
+        <div className="ex-row"><span>Регулярные доходы впереди</span><span>+<Money value={e.recurring} round /></span></div>
+      )}
+      <div className="ex-row ex-total"><span>Ожидается к концу {periodWord(s)}</span><Money value={e.total} round /></div>
+    </div>
+  );
+}
+
 /* ---------- Расходы по дням ---------- */
 
 export function DaysChart({ s, today, kind = 'expense' }: { s: Summary; today: string; kind?: 'expense' | 'income' | 'both' }) {
@@ -133,7 +167,8 @@ export function DaysChart({ s, today, kind = 'expense' }: { s: Summary; today: s
   const days = s.daily;
   const val = (d: Summary['daily'][number]) => d[kind];
   const avg = kind === 'expense' ? s.avgPerDay : s.daysElapsed ? Math.round(s.income / s.daysElapsed) : 0;
-  const forecast = s.forecastExpense === null ? null : kind === 'expense' ? s.forecastExpense : avg * s.daysTotal;
+  // для доходов вместо «как сейчас × дни» — ожидаемое с учётом планов и регулярных доходов
+  const forecast = s.forecastExpense === null ? null : kind === 'expense' ? s.forecastExpense : s.expectedIncome?.total ?? avg * s.daysTotal;
   const max = Math.max(1, ...days.map(val)) * 1.05;
   const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
   const cols = { gridTemplateColumns: `repeat(${days.length}, 1fr)` };
@@ -166,7 +201,11 @@ export function DaysChart({ s, today, kind = 'expense' }: { s: Summary; today: s
         <div className="days-note">
           <span>Прошло {s.daysElapsed} {plural(s.daysElapsed, 'день', 'дня', 'дней')} из {s.daysTotal}</span>
           {s.daysElapsed > 0 && (
-            <span>Если так продолжится, за {s.daysTotal > 31 ? 'период' : 'месяц'} {kind === 'expense' ? 'уйдёт' : 'придёт'} <b>≈ <Money value={forecast} round /></b></span>
+            kind === 'expense' ? (
+              <span>Если так продолжится, за {s.daysTotal > 31 ? 'период' : 'месяц'} уйдёт <b>≈ <Money value={forecast} round /></b></span>
+            ) : (
+              <span>Ожидается к концу {periodWord(s)} <b>≈ <Money value={forecast} round /></b></span>
+            )
           )}
         </div>
       )}
@@ -221,6 +260,14 @@ function DaysChartBoth({ s, today }: { s: Summary; today: string }) {
         <span><i style={{ background: 'var(--income)' }} />Приход</span>
         <span><i style={{ background: 'var(--expense)' }} />Расход</span>
       </div>
+      {s.forecastExpense !== null && (
+        <div className="days-note">
+          <span>Прошло {s.daysElapsed} {plural(s.daysElapsed, 'день', 'дня', 'дней')} из {s.daysTotal}</span>
+          {s.daysElapsed > 0 && (
+            <span>Если так продолжится, за {s.daysTotal > 31 ? 'период' : 'месяц'} уйдёт <b>≈ <Money value={s.forecastExpense} round /></b></span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

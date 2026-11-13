@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { BellRing, Ban, Pencil, ShoppingCart, Trash2, X } from 'lucide-react';
+import { BellRing, Ban, HandCoins, Pencil, ShoppingCart, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { addDays, amountToInput, parseAmount, todayISO, type Planned, type PlannedItem, type PlannedOverview } from '@selfinance/shared';
 import { ApiError } from '../lib/api';
@@ -20,6 +20,10 @@ export function planWhen(p: PlannedItem) {
 
 /** «Денег хватает» / «К этой дате не хватает X». */
 function PlanStatus({ p }: { p: PlannedItem }) {
+  if (p.type === 'income') {
+    const overdue = p.daysLeft !== null && p.daysLeft < 0;
+    return <span className={'plan-status ' + (overdue ? 'bad' : 'inc')}>{overdue ? 'Ещё не пришло' : p.date ? 'Ожидается доход' : 'Доход когда-нибудь'}</span>;
+  }
   if (p.shortfall > 0) {
     return (
       <span className="plan-status bad">
@@ -49,7 +53,7 @@ export function PlanRow({ p, l, onOpen }: { p: PlannedItem; l: Lookups; onOpen: 
         <div className="tx-title">{p.name}</div>
         <div className={'tx-sub' + (overdue ? ' exp' : '')}>{planWhen(p)}</div>
       </div>
-      <div className="tx-sum num"><Money value={-p.amount} /></div>
+      <div className={'tx-sum num' + (p.type === 'income' ? ' inc' : '')}><Money value={p.type === 'income' ? p.amount : -p.amount} sign={p.type === 'income' ? 'always' : undefined} /></div>
       <div className="plan-extra"><PlanStatus p={p} /></div>
     </button>
   );
@@ -64,6 +68,7 @@ function PlanCard({ p, l, onClose, onEdit }: { p: PlannedItem; l: Lookups; onClo
   const { cat } = catColor(l, p.categoryId);
   const acc = l.account(p.accountId);
   const overdue = p.daysLeft !== null && p.daysLeft < 0;
+  const income = p.type === 'income';
 
   async function cancel() {
     if (!confirm(`Отменить план «${p.name}»? Его можно будет вернуть из списка отменённых.`)) return;
@@ -84,7 +89,7 @@ function PlanCard({ p, l, onClose, onEdit }: { p: PlannedItem; l: Lookups; onClo
         <p className="plan-card-status"><PlanStatus p={p} /></p>
         {(cat || acc || p.comment) && (
           <p className="muted plan-card-meta">
-            {[cat?.name, acc ? `со счёта «${acc.name}»` : null, p.comment].filter(Boolean).join(' · ')}
+            {[cat?.name, acc ? `${income ? 'на счёт' : 'со счёта'} «${acc.name}»` : null, p.comment].filter(Boolean).join(' · ')}
           </p>
         )}
 
@@ -98,10 +103,12 @@ function PlanCard({ p, l, onClose, onEdit }: { p: PlannedItem; l: Lookups; onClo
                 open({ planned: p });
               }}
             >
-              <span className="more-ico plan-ico-buy"><ShoppingCart size={19} strokeWidth={1.8} /></span>
+              <span className={'more-ico ' + (income ? 'plan-ico-get' : 'plan-ico-buy')}>
+                {income ? <HandCoins size={19} strokeWidth={1.8} /> : <ShoppingCart size={19} strokeWidth={1.8} />}
+              </span>
               <span className="more-text">
-                <b>Внести покупку</b>
-                <small className="muted">Уже купил — записать расход и закрыть план</small>
+                <b>{income ? 'Внести поступление' : 'Внести покупку'}</b>
+                <small className="muted">{income ? 'Деньги пришли — записать доход и закрыть план' : 'Уже купил — записать расход и закрыть план'}</small>
               </span>
             </button>
             <button type="button" className="more-item" onClick={onEdit}>
@@ -115,7 +122,7 @@ function PlanCard({ p, l, onClose, onEdit }: { p: PlannedItem; l: Lookups; onClo
               <span className="more-ico"><Ban size={18} strokeWidth={1.8} /></span>
               <span className="more-text">
                 <b>Отменить план</b>
-                <small className="muted">Передумал покупать — убрать из списка</small>
+                <small className="muted">{income ? 'Денег не будет — убрать из списка' : 'Передумал покупать — убрать из списка'}</small>
               </span>
             </button>
           </div>
@@ -133,11 +140,13 @@ const QUICK = [
   { days: 30, label: 'Через месяц' },
 ];
 
-export function PlannedSheet({ plan, l, onClose }: { plan: Planned | null; l: Lookups; onClose: () => void }) {
+export function PlannedSheet({ plan, l, onClose, initialType = 'expense' }: { plan: Planned | null; l: Lookups; onClose: () => void; initialType?: 'income' | 'expense' }) {
   const { user } = useAuth();
   const today = todayISO(user?.timezone);
   const save = useSavePlanned();
   const action = usePlannedAction();
+  const [type, setType] = useState<'income' | 'expense'>(plan?.type ?? initialType);
+  const income = type === 'income';
   const [name, setName] = useState(plan?.name ?? '');
   const [amount, setAmount] = useState(plan ? amountToInput(plan.amount) : '');
   const [date, setDate] = useState<string>(plan ? plan.date ?? '' : addDays(today, 7));
@@ -147,7 +156,12 @@ export function PlannedSheet({ plan, l, onClose }: { plan: Planned | null; l: Lo
   const [excludeFromLimit, setExclude] = useState(plan?.excludeFromLimit ?? true);
   const [error, setError] = useState<string | null>(null);
 
-  const cats = l.categories.filter((c) => c.type === 'expense' && (!c.isArchived || c.id === categoryId));
+  const cats = l.categories.filter((c) => c.type === type && (!c.isArchived || c.id === categoryId));
+  const switchType = (t: 'income' | 'expense') => {
+    if (t === type) return;
+    setType(t);
+    setCategoryId('');
+  };
   const tops = cats.filter((c) => !c.parentId);
   const accounts = l.accounts.filter((a) => !a.isArchived && !a.isFrozen);
 
@@ -155,12 +169,13 @@ export function PlannedSheet({ plan, l, onClose }: { plan: Planned | null; l: Lo
     e.preventDefault();
     setError(null);
     const a = parseAmount(amount);
-    if (!name.trim()) return setError('Укажите, что купить');
+    if (!name.trim()) return setError(income ? 'Укажите, откуда доход' : 'Укажите, что купить');
     if (!a || a <= 0) return setError('Введите сумму');
     try {
       await save.mutateAsync({
         id: plan?.id,
         data: {
+          type,
           name: name.trim(),
           amount: a,
           date: date || null,
@@ -190,13 +205,25 @@ export function PlannedSheet({ plan, l, onClose }: { plan: Planned | null; l: Lo
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <form className="sheet" onSubmit={submit}>
         <div className="sheet-head">
-          <h2>{plan ? 'Изменить план' : 'Запланировать расход'}</h2>
+          <h2>{plan ? 'Изменить план' : income ? 'Запланировать доход' : 'Запланировать расход'}</h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть"><X size={18} /></button>
         </div>
 
+        <div className={'segmented t-' + type}>
+          <button type="button" aria-pressed={!income} onClick={() => switchType('expense')}>Расход</button>
+          <button type="button" aria-pressed={income} onClick={() => switchType('income')}>Доход</button>
+        </div>
+
         <label className="field">
-          <span>Что купить</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Например, зимняя резина" maxLength={100} autoFocus={!plan} />
+          <span>{income ? 'Откуда деньги' : 'Что купить'}</span>
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={income ? 'Например, премия или возврат долга' : 'Например, зимняя резина'}
+            maxLength={100}
+            autoFocus={!plan}
+          />
         </label>
 
         <label className="field">
@@ -242,9 +269,9 @@ export function PlannedSheet({ plan, l, onClose }: { plan: Planned | null; l: Lo
 
         {l.multiAccount && (
           <label className="field">
-            <span>С какого счёта платить</span>
+            <span>{income ? 'На какой счёт придут' : 'С какого счёта платить'}</span>
             <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-              <option value="">Решу при покупке</option>
+              <option value="">{income ? 'Решу при поступлении' : 'Решу при покупке'}</option>
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
@@ -255,10 +282,13 @@ export function PlannedSheet({ plan, l, onClose }: { plan: Planned | null; l: Lo
           <input className="input" value={comment} maxLength={500} onChange={(e) => setComment(e.target.value)} placeholder="Необязательно" />
         </label>
 
-        <label className="switch-row">
+        {!income && <label className="switch-row">
           <span><b>Не учитывать в лимите</b><small>Покупка запланирована заранее и не съест месячный лимит</small></span>
           <input type="checkbox" className="switch" checked={excludeFromLimit} onChange={(e) => setExclude(e.target.checked)} />
-        </label>
+        </label>}
+        {income && date && (
+          <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>Доход прибавится в прогнозе «После планов» и в ожидаемом приходе за месяц.</p>
+        )}
 
         {error && <div className="form-error">{error}</div>}
         <div className="sheet-actions">
@@ -284,7 +314,8 @@ export function ForecastSheet({ data, onClose }: { data: PlannedOverview; onClos
         </div>
         <p className="hint" style={{ marginTop: 0 }}>
           Из свободных денег по порядку вычитаются регулярные платежи и запланированные покупки
-          {data.horizon ? ` до ${shortDate(data.horizon)}` : ''}. Будущие доходы не учитываются.
+          {data.horizon ? ` до ${shortDate(data.horizon)}` : ''}, а запланированные доходы прибавляются.
+          Регулярные доходы не учитываются — прогноз осторожный.
         </p>
         <div className="fc-row fc-start">
           <span>Свободно сейчас</span>
@@ -295,9 +326,10 @@ export function ForecastSheet({ data, onClose }: { data: PlannedOverview; onClos
             <span>
               <small className="muted">{shortDate(s.date)}</small> {s.name}
               {s.kind === 'recurring' && <small className="muted"> · регулярный</small>}
+              {s.type === 'income' && <small className="muted"> · доход</small>}
             </span>
-            <span className="fc-sum">
-              −{s.approx && '≈'}<Money value={s.amount} round />
+            <span className={'fc-sum' + (s.type === 'income' ? ' inc' : '')}>
+              {s.type === 'income' ? '+' : '−'}{s.approx && '≈'}<Money value={s.amount} round />
               <small className="muted"> → <Money value={s.balanceAfter} round /></small>
             </span>
           </div>
@@ -326,7 +358,7 @@ export function AfterPlans({ data, onOpen }: { data: PlannedOverview; onOpen: ()
 
 /* ---------- листы плана (главная и экран «Планы») ---------- */
 
-type SheetState = { kind: 'card'; plan: PlannedItem } | { kind: 'edit'; plan: Planned | null };
+type SheetState = { kind: 'card'; plan: PlannedItem } | { kind: 'edit'; plan: Planned | null; type?: 'income' | 'expense' };
 
 export function usePlanSheets(l: Lookups) {
   const [state, setState] = useState<SheetState | null>(null);
@@ -334,10 +366,10 @@ export function usePlanSheets(l: Lookups) {
   const sheets = !state ? null : state.kind === 'card' ? (
     <PlanCard p={state.plan} l={l} onClose={close} onEdit={() => setState({ kind: 'edit', plan: state.plan })} />
   ) : (
-    <PlannedSheet plan={state.plan} l={l} onClose={close} />
+    <PlannedSheet plan={state.plan} l={l} onClose={close} initialType={state.type} />
   );
   return {
-    create: () => setState({ kind: 'edit', plan: null }),
+    create: (type: 'income' | 'expense' = 'expense') => setState({ kind: 'edit', plan: null, type }),
     open: (plan: PlannedItem) => setState({ kind: 'card', plan }),
     sheets,
   };
@@ -359,7 +391,7 @@ export function AheadPanel({ l, planned }: { l: Lookups; planned?: PlannedOvervi
           <BellRing size={18} className="muted" /> Впереди
         </h2>
         <span style={{ display: 'flex', gap: 16 }}>
-          {canEdit && <button className="link" onClick={s.create}>+ Запланировать</button>}
+          {canEdit && <button className="link" onClick={() => s.create()}>+ Запланировать</button>}
           <Link className="link" to="/planned">Все планы</Link>
         </span>
       </div>

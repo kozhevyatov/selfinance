@@ -47,7 +47,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
   const planAcc = plan ? activeAccounts.find((a) => a.id === plan.accountId)?.id : undefined;
   const defaultAcc = planAcc ?? activeAccounts.find((a) => a.id === lastAcc)?.id ?? activeAccounts.find((a) => !a.isFrozen && !isCredit(a))?.id ?? activeAccounts[0]?.id ?? '';
 
-  const [type, setType] = useState<TxType>(edit?.type ?? pay?.type ?? (plan ? 'expense' : opts.type) ?? 'expense');
+  const [type, setType] = useState<TxType>(edit?.type ?? pay?.type ?? (plan ? plan.type ?? 'expense' : opts.type) ?? 'expense');
   const [amountStr, setAmountStr] = useState(edit ? amountToInput(edit.amount) : pay ? amountToInput(pay.amount) : plan ? amountToInput(plan.amount) : '');
   const [categoryId, setCategoryId] = useState<string | null>(edit?.categoryId ?? pay?.categoryId ?? plan?.categoryId ?? null);
   const initialAcc = edit?.accountId ?? pay?.accountId ?? opts.accountId ?? defaultAcc;
@@ -188,7 +188,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
     onClose();
   }
 
-  const title = edit ? 'Операция' : pay ? `Оплата: ${pay.name}` : plan ? `Покупка: ${plan.name}` : 'Новая операция';
+  const title = edit ? 'Операция' : pay ? `Оплата: ${pay.name}` : plan ? `${plan.type === 'income' ? 'Поступление' : 'Покупка'}: ${plan.name}` : 'Новая операция';
   const showAccount = activeAccounts.length > 1 || type === 'transfer';
 
   return (
@@ -203,7 +203,9 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
 
         {plan ? (
           <p className="hint" style={{ marginTop: 0 }}>
-            Проверьте сумму и сохраните — расход запишется, а план закроется.
+            {plan.type === 'income'
+              ? 'Проверьте сумму и сохраните — доход запишется, а план закроется.'
+              : 'Проверьте сумму и сохраните — расход запишется, а план закроется.'}
           </p>
         ) : type === 'adjustment' ? (
           <p className="hint" style={{ marginTop: 0 }}>Корректировка баланса счёта. Сумма со знаком: минус уменьшает остаток.</p>

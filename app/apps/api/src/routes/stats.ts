@@ -22,6 +22,7 @@ import { requireUser } from '../lib/auth';
 import { badRequest, num } from '../lib/util';
 import { listAccounts } from '../services/accounts';
 import { requireBudget } from '../services/budgets';
+import { expectedIncome } from '../services/planned';
 
 /** Категория вместе с подкатегориями — для фильтра статистики. undefined — без фильтра. */
 async function categorySet(db: DB, budgetId: string, categoryId?: string): Promise<string[] | undefined> {
@@ -157,6 +158,7 @@ export default async function statsRoutes(app: FastifyInstance) {
       avgPerDay,
       avgPerWeek: avgPerDay * 7,
       forecastExpense: isCurrent ? avgPerDay * daysTotal : null,
+      expectedIncome: await expectedIncome(db, budgetId, from, to, today, cur.income, cats),
       daily: [...dailyMap.values()].sort((a, b) => (a.date < b.date ? -1 : 1)),
       expenseByCategory: await byCategory(db, budgetId, from, to, 'expense', cats),
       incomeByCategory: await byCategory(db, budgetId, from, to, 'income', cats),

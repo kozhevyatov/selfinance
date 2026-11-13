@@ -104,9 +104,18 @@ export interface Summary {
   avgPerDay: number;
   avgPerWeek: number;
   forecastExpense: number | null; // только для текущего периода
+  /** Для текущего и будущего периода: сколько дохода ожидается к концу периода. */
+  expectedIncome: ExpectedIncome | null;
   daily: { date: string; expense: number; income: number }[];
   expenseByCategory: CategoryStat[];
   incomeByCategory: CategoryStat[];
+}
+
+export interface ExpectedIncome {
+  received: number; // уже пришло за период
+  planned: number; // запланированные доходы с датой до конца периода (просроченные тоже)
+  recurring: number; // регулярные доходы, которые ещё должны прийти в периоде
+  total: number; // received + planned + recurring
 }
 
 export interface Capital {
@@ -152,6 +161,7 @@ export interface UpcomingPayment {
 
 export interface Planned {
   id: string;
+  type: 'income' | 'expense'; // запланированный расход (покупка) или ожидаемый доход
   name: string;
   amount: number;
   date: string | null; // null — без даты
@@ -168,6 +178,7 @@ export interface Planned {
 /** Строка расшифровки прогноза: что и когда вычитается из свободных денег. */
 export interface ForecastStep {
   kind: 'recurring' | 'planned';
+  type: 'income' | 'expense'; // доход прибавляется, расход вычитается
   id: string;
   name: string;
   date: string;
@@ -235,4 +246,16 @@ export interface Limits {
   recurring: { paid: number; upcoming: number };
   /** заданные лимиты (для формы): общий и по категориям */
   settings: { categoryId: string | null; amount: number; fromMonth: string }[];
+}
+
+/** Версия сервера и наличие обновления на GitHub. */
+export interface VersionInfo {
+  current: string; // версия, которая сейчас работает на сервере
+  latest: string | null; // последняя версия на GitHub; null — не удалось проверить
+  updateAvailable: boolean;
+  checkedAt: string;
+  enabled: boolean; // проверка выключена через UPDATE_CHECK=0
+  repo: string; // owner/name на GitHub
+  notes: { version: string; items: string[] }[]; // что нового (из CHANGELOG.md)
+  error: string | null;
 }

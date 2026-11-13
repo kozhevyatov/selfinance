@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Account, Capital, Category, DynamicsPoint, Limits, Planned, PlannedOverview, Recurring, Summary, Transaction, TxCreateInput, TxPage, UpcomingPayment } from '@selfinance/shared';
+import type { Account, Capital, Category, DynamicsPoint, Limits, Planned, PlannedOverview, Recurring, Summary, Transaction, TxCreateInput, TxPage, UpcomingPayment, VersionInfo } from '@selfinance/shared';
 import { api, del, get, patch, post } from './api';
 import { useBudget } from './budget';
 
@@ -266,6 +266,7 @@ export function usePlanned() {
 }
 
 export interface PlannedInput {
+  type?: 'income' | 'expense';
   name?: string;
   amount?: number;
   date?: string | null;
@@ -293,5 +294,30 @@ export function usePlannedAction() {
     mutationFn: ({ id, action }: { id: string; action: 'cancel' | 'restore' | 'delete' }) =>
       action === 'delete' ? del(`/budgets/${budgetId}/planned/${id}`) : post(`/budgets/${budgetId}/planned/${id}/${action}`),
     onSuccess: invalidate,
+  });
+}
+
+/* ---------- версия сервера и обновления ---------- */
+
+const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+/** Проверка обновления: при открытии приложения и раз в 6 часов (сервер тоже кеширует ответ GitHub). */
+export function useVersion() {
+  return useQuery({
+    queryKey: ['version'],
+    queryFn: () => get<VersionInfo>('/version'),
+    staleTime: SIX_HOURS,
+    refetchInterval: SIX_HOURS,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+/** «Проверить сейчас» — мимо кеша сервера. */
+export function useCheckVersion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => get<VersionInfo>('/version', { force: 1 }),
+    onSuccess: (info) => qc.setQueryData(['version'], info),
   });
 }

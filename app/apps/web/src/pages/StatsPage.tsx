@@ -11,7 +11,7 @@ import {
   todayISO,
 } from '@selfinance/shared';
 import { DynamicsChart, StructureView } from '../components/Charts';
-import { AccountsList, CapitalBlock, DaysChart, MonthTotals, TypeTotals, type PrevLabel } from '../components/HomeWidgets';
+import { AccountsList, CapitalBlock, DaysChart, ExpectedIncomeBox, MonthTotals, TypeTotals, type PrevLabel } from '../components/HomeWidgets';
 import { TopBar } from '../components/Layout';
 import { LimitCard } from '../components/Limits';
 import { useAuth } from '../lib/auth';
@@ -134,6 +134,7 @@ export function StatsPage() {
           {s ? (
             <>
               {kind === 'all' ? <MonthTotals s={s} prevLabel={label} /> : <TypeTotals s={s} all={catId ? all : undefined} kind={kind} prevLabel={label} />}
+              {kind !== 'expense' && <ExpectedIncomeBox s={s} />}
               {showDays && <DaysChart s={s} today={today} kind={kind === 'all' ? 'both' : kind} />}
             </>
           ) : (

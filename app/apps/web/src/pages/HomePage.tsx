@@ -59,7 +59,7 @@ export function HomePage() {
           {summary.data ? (
             <>
               <MonthTotals s={summary.data} prevLabel={prevLabel} />
-              <DaysChart s={summary.data} today={today} />
+              <DaysChart s={summary.data} today={today} kind="both" />
             </>
           ) : (
             <div className="skeleton" style={{ height: 200 }} />

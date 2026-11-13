@@ -44,9 +44,10 @@ export function setTokens(t: Tokens | null) {
 export const hasTokens = () => !!tokens;
 export const getRefreshToken = () => tokens?.refreshToken ?? null;
 
-let refreshing: Promise<boolean> | null = null;
+let refreshing: Promise<boolean | null> | null = null;
 
-async function refresh(): Promise<boolean> {
+/** true — токены обновлены, false — сервер отказал (надо войти заново), null — нет связи. */
+async function refresh(): Promise<boolean | null> {
   if (!tokens) return false;
   if (!refreshing) {
     refreshing = (async () => {
@@ -56,12 +57,12 @@ async function refresh(): Promise<boolean> {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken: tokens!.refreshToken }),
         });
-        if (!res.ok) return false;
+        if (!res.ok) return res.status >= 500 ? null : false;
         const data = (await res.json()) as AuthResponse;
         setTokens(data);
         return true;
       } catch {
-        return false;
+        return null; // без интернета не разлогиниваем
       } finally {
         setTimeout(() => (refreshing = null), 0);
       }
@@ -92,7 +93,9 @@ export async function api<T>(method: string, path: string, body?: unknown, query
   }
 
   if (res.status === 401 && retry && tokens && !path.startsWith('/auth/login')) {
-    if (await refresh()) return api<T>(method, path, body, query, false);
+    const ok = await refresh();
+    if (ok) return api<T>(method, path, body, query, false);
+    if (ok === null) throw new ApiError(0, 'NETWORK', 'Нет связи с сервером');
     setTokens(null);
     onLogout?.();
   }

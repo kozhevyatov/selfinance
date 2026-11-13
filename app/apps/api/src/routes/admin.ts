@@ -11,7 +11,8 @@ import {
 import { VERSION } from '../config';
 import { ctx, getDb } from '../context';
 import type { InvitesTable, UsersTable } from '../db/types';
-import { hashPassword, requireAdmin } from '../lib/auth';
+import { hashPassword, requireAdmin, requireUser } from '../lib/auth';
+import { getVersionInfo } from '../services/updates';
 import { badRequest, notFound, nowIso, randomToken, uuidv7 } from '../lib/util';
 import { createBudget } from '../services/budgets';
 import { getRegistrationMode, setSetting } from '../services/settings';
@@ -36,6 +37,12 @@ const toInvite = (i: InvitesTable): Invite => ({
 });
 
 export default async function adminRoutes(app: FastifyInstance) {
+  /** Версия сервера и есть ли новее на GitHub. ?force=1 — проверить сейчас (не чаще раза в минуту). */
+  app.get<{ Querystring: { force?: string } }>('/version', async (req) => {
+    await requireUser(req);
+    return getVersionInfo(req.query.force === '1');
+  });
+
   app.get('/admin/settings', async (req) => {
     await requireAdmin(req);
     return {

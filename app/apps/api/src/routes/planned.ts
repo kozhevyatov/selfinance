@@ -16,7 +16,7 @@ import { buildOverview, getPlan, toPlanned } from '../services/planned';
 
 type P = { budgetId: string; pid: string };
 
-async function checkRefs(db: DB, budgetId: string, categoryId?: string | null, accountId?: string | null) {
+async function checkRefs(db: DB, budgetId: string, type: 'income' | 'expense', categoryId?: string | null, accountId?: string | null) {
   if (categoryId) {
     const cat = await db
       .selectFrom('categories')
@@ -25,7 +25,9 @@ async function checkRefs(db: DB, budgetId: string, categoryId?: string | null, a
       .where('budget_id', '=', budgetId)
       .where('deleted_at', 'is', null)
       .executeTakeFirst();
-    if (!cat || cat.type !== 'expense') throw badRequest('Категория не подходит', { categoryId: 'Выберите категорию расхода' });
+    if (!cat || cat.type !== type) {
+      throw badRequest('Категория не подходит', { categoryId: type === 'income' ? 'Выберите категорию дохода' : 'Выберите категорию расхода' });
+    }
   }
   if (accountId && !(await getAccount(db, budgetId, accountId))) throw badRequest('Счёт не найден', { accountId: 'Счёт не найден' });
 }
@@ -45,11 +47,13 @@ export default async function plannedRoutes(app: FastifyInstance) {
     const { budgetId } = req.params;
     await requireBudget(db, budgetId, user.id, 'member');
     const input = plannedCreateSchema.parse(req.body);
-    await checkRefs(db, budgetId, input.categoryId, input.accountId);
+    const type = input.type ?? 'expense';
+    await checkRefs(db, budgetId, type, input.categoryId, input.accountId);
     const now = nowIso();
     const row: PlannedTable = {
       id: uuidv7(),
       budget_id: budgetId,
+      type,
       name: input.name,
       amount: input.amount,
       date: input.date ?? null,
@@ -77,13 +81,16 @@ export default async function plannedRoutes(app: FastifyInstance) {
     const plan = await getPlan(db, budgetId, pid);
     if (!plan) throw notFound('План не найден');
     const input = plannedUpdateSchema.parse(req.body);
-    await checkRefs(db, budgetId, input.categoryId, input.accountId);
+    const type = input.type ?? plan.type ?? 'expense';
+    // сменили тип — категория старого типа не подойдёт
+    const categoryId = input.categoryId !== undefined ? input.categoryId : type !== plan.type ? null : undefined;
+    await checkRefs(db, budgetId, type, categoryId, input.accountId);
     const now = nowIso();
-    const patch: Partial<PlannedTable> = { updated_at: now };
+    const patch: Partial<PlannedTable> = { updated_at: now, type };
+    if (categoryId !== undefined) patch.category_id = categoryId ?? null;
     if (input.name !== undefined) patch.name = input.name;
     if (input.amount !== undefined) patch.amount = input.amount;
     if (input.date !== undefined) patch.date = input.date ?? null;
-    if (input.categoryId !== undefined) patch.category_id = input.categoryId ?? null;
     if (input.accountId !== undefined) patch.account_id = input.accountId ?? null;
     if (input.comment !== undefined) patch.comment = input.comment?.trim() || null;
     if (input.excludeFromLimit !== undefined) patch.exclude_from_limit = input.excludeFromLimit ? 1 : 0;

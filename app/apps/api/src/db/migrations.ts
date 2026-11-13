@@ -272,6 +272,13 @@ migrations['0007_credit_in_free'] = {
   },
 };
 
+migrations['0008_planned_income'] = {
+  async up(db: Kysely<any>) {
+    // планы бывают и доходами: ожидаемая зарплата, возврат долга и т.п.
+    await db.schema.alterTable('planned').addColumn('type', 'varchar(16)', (c) => c.notNull().defaultTo('expense')).execute();
+  },
+};
+
 class InlineProvider implements MigrationProvider {
   async getMigrations() {
     return migrations;

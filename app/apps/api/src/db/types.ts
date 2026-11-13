@@ -127,6 +127,7 @@ export interface TransactionsTable {
 export interface PlannedTable {
   id: string;
   budget_id: string;
+  type: 'income' | 'expense';
   name: string;
   amount: number;
   date: string | null;

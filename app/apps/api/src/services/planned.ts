@@ -7,6 +7,7 @@ import {
   type Planned,
   type PlannedItem,
   type PlannedOverview,
+  type ExpectedIncome,
   splitCapital,
 } from '@selfinance/shared';
 import type { DB } from '../db';
@@ -28,6 +29,7 @@ export async function getPlan(db: DB, budgetId: string, id: string) {
 export function toPlanned(p: PlannedTable): Planned {
   return {
     id: p.id,
+    type: p.type ?? 'expense',
     name: p.name,
     amount: Number(p.amount),
     date: p.date,
@@ -79,8 +81,9 @@ export function occurrences(rule: RecurringTable, skips: Set<string>, today: str
 }
 
 /**
- * Прогноз: свободные деньги минус регулярные расходы и планы с датой, по порядку дат.
- * Доходы не прибавляются (осторожный прогноз). Просроченное считается сегодняшним.
+ * Прогноз: свободные деньги минус регулярные расходы и запланированные покупки, плюс запланированные доходы,
+ * по порядку дат. Регулярные доходы не прибавляются (осторожный прогноз) — только те, что записаны в планы.
+ * Просроченное считается сегодняшним.
  */
 export async function buildOverview(db: DB, budgetId: string, today: string): Promise<PlannedOverview> {
   const accounts = await listAccounts(db, budgetId);
@@ -117,16 +120,19 @@ export async function buildOverview(db: DB, budgetId: string, today: string): Pr
     const skips = await loadSkips(db, rules.map((r) => r.id));
     for (const r of rules) {
       for (const d of occurrences(r, skips.get(r.id) ?? new Set(), today, horizon)) {
-        events.push({ kind: 'recurring', id: r.id, name: r.name, date: eff(d), amount: Number(r.amount), approx: !!r.amount_varies, order: 0 });
+        events.push({ kind: 'recurring', type: 'expense', id: r.id, name: r.name, date: eff(d), amount: Number(r.amount), approx: !!r.amount_varies, order: 1 });
       }
     }
-    dated.forEach((p, i) => events.push({ kind: 'planned', id: p.id, name: p.name, date: eff(p.date!), amount: p.amount, approx: false, order: 1 + i }));
+    // в один день доход считаем раньше расходов: деньги пришли — можно тратить
+    dated.forEach((p, i) =>
+      events.push({ kind: 'planned', type: p.type, id: p.id, name: p.name, date: eff(p.date!), amount: p.amount, approx: false, order: p.type === 'income' ? 0 : 2 + i }),
+    );
   }
   events.sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1));
 
   let balance = free;
   const steps: ForecastStep[] = events.map(({ order: _o, ...e }) => {
-    balance -= e.amount;
+    balance += e.type === 'income' ? e.amount : -e.amount;
     return { ...e, balanceAfter: balance };
   });
   const afterPlans = horizon ? balance : null;
@@ -134,10 +140,11 @@ export async function buildOverview(db: DB, budgetId: string, today: string): Pr
   const items: PlannedItem[] = [];
   for (const p of dated) {
     const step = steps.find((s) => s.kind === 'planned' && s.id === p.id)!;
-    items.push({ ...p, daysLeft: daysUntil(today, p.date!), shortfall: Math.max(0, -step.balanceAfter) });
+    const shortfall = p.type === 'income' ? 0 : Math.max(0, -step.balanceAfter);
+    items.push({ ...p, daysLeft: daysUntil(today, p.date!), shortfall });
   }
   const base = Math.max(0, afterPlans ?? free);
-  for (const p of undated) items.push({ ...p, daysLeft: null, shortfall: Math.max(0, p.amount - base) });
+  for (const p of undated) items.push({ ...p, daysLeft: null, shortfall: p.type === 'income' ? 0 : Math.max(0, p.amount - base) });
 
   const historyRows = await db
     .selectFrom('planned')
@@ -150,4 +157,55 @@ export async function buildOverview(db: DB, budgetId: string, today: string): Pr
     .execute();
 
   return { free, afterPlans, horizon, steps, items, history: historyRows.map(toPlanned) };
+}
+
+/**
+ * Ожидаемый доход к концу периода [from, to]: что уже пришло + активные планы-доходы с датой до конца периода
+ * (просроченные тоже — они всё ещё ждут) + регулярные доходы, которые ещё должны прийти в периоде.
+ * Только для периода, который ещё не закончился; иначе null.
+ */
+export async function expectedIncome(
+  db: DB,
+  budgetId: string,
+  from: string,
+  to: string,
+  today: string,
+  received: number,
+  cats?: string[],
+): Promise<ExpectedIncome | null> {
+  if (to < today) return null;
+
+  let pq = db
+    .selectFrom('planned')
+    .select(['amount', 'date', 'category_id'])
+    .where('budget_id', '=', budgetId)
+    .where('deleted_at', 'is', null)
+    .where('status', '=', 'active')
+    .where('type', '=', 'income')
+    .where('date', 'is not', null)
+    .where('date', '<=', to);
+  // будущий период — просроченные планы относятся к текущему, не к нему
+  if (from > today) pq = pq.where('date', '>=', from);
+  if (cats) pq = pq.where('category_id', 'in', cats);
+  const planned = (await pq.execute()).reduce((s, p) => s + Number(p.amount), 0);
+
+  let rq = db
+    .selectFrom('recurring')
+    .selectAll()
+    .where('budget_id', '=', budgetId)
+    .where('deleted_at', 'is', null)
+    .where('is_paused', '=', 0)
+    .where('type', '=', 'income');
+  if (cats) rq = rq.where('category_id', 'in', cats);
+  const rules = await rq.execute();
+  const skips = await loadSkips(db, rules.map((r) => r.id));
+  let recurring = 0;
+  for (const r of rules) {
+    for (const d of occurrences(r, skips.get(r.id) ?? new Set(), today, to)) {
+      // просроченные с прошлых периодов не считаем — регулярный доход мог просто не отметиться
+      if (d >= from) recurring += Number(r.amount);
+    }
+  }
+
+  return { received, planned, recurring, total: received + planned + recurring };
 }
