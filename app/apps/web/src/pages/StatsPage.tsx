@@ -134,7 +134,7 @@ export function StatsPage() {
           {s ? (
             <>
               {kind === 'all' ? <MonthTotals s={s} prevLabel={label} /> : <TypeTotals s={s} all={catId ? all : undefined} kind={kind} prevLabel={label} />}
-              {showDays && <DaysChart s={s} today={today} kind={kind === 'income' ? 'income' : 'expense'} />}
+              {showDays && <DaysChart s={s} today={today} kind={kind === 'all' ? 'both' : kind} />}
             </>
           ) : (
             <div className="skeleton" style={{ height: 180 }} />

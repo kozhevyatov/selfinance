@@ -14,6 +14,7 @@ import {
   type Capital,
   type CategoryStat,
   type Summary,
+  splitCapital,
 } from '@selfinance/shared';
 import { getDb } from '../context';
 import type { DB } from '../db';
@@ -168,9 +169,7 @@ export default async function statsRoutes(app: FastifyInstance) {
     const user = await requireUser(req);
     await requireBudget(db, req.params.budgetId, user.id);
     const accounts = await listAccounts(db, req.params.budgetId);
-    const free = accounts.filter((a) => !a.isFrozen).reduce((s, a) => s + a.balance, 0);
-    const frozen = accounts.filter((a) => a.isFrozen).reduce((s, a) => s + a.balance, 0);
-    return { free, frozen, total: free + frozen, accounts };
+    return { ...splitCapital(accounts), accounts };
   });
 
   /** Помесячная динамика: приход, расход и капитал (все счета) на конец каждого месяца. */

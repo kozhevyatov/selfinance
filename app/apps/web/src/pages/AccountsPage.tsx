@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Archive, ArrowLeftRight, Plus, Snowflake, Sun, X } from 'lucide-react';
-import { amountToInput, formatMoney, parseAmount, type Account, type AccountKind } from '@selfinance/shared';
+import { Archive, ArrowLeftRight, CreditCard, Plus, Snowflake, Sun, X } from 'lucide-react';
+import { amountToInput, creditAvailableOf, debtOf, formatMoney, isCredit, isCreditKind, parseAmount, type Account, type AccountKind } from '@selfinance/shared';
 import { AccountsList } from '../components/HomeWidgets';
 import { TopBar, useTxSheet } from '../components/Layout';
 import { Money } from '../components/Money';
@@ -13,6 +13,8 @@ const KINDS: { v: AccountKind; label: string }[] = [
   { v: 'bank', label: 'Банк' },
   { v: 'deposit', label: 'Вклад' },
   { v: 'savings', label: 'Копилка' },
+  { v: 'credit', label: 'Кредитка' },
+  { v: 'loan', label: 'Кредит' },
 ];
 
 export function AccountsPage() {
@@ -35,9 +37,13 @@ export function AccountsPage() {
             </div>
             <div className="cap-side">
               <div className="frz"><span>Заморожено</span><b><Money value={capital.data.frozen} /></b></div>
+              {capital.data.debt > 0 && <div className="crd"><span>Долг</span><b><Money value={capital.data.debt} /></b></div>}
               <div><span>Всего</span><b><Money value={capital.data.total} /></b></div>
             </div>
           </div>
+          {capital.data.creditAvailable > 0 && (
+            <div className="cap-credit">+ <Money value={capital.data.creditAvailable} round /> доступно по кредиткам</div>
+          )}
         </div>
       )}
 
@@ -57,6 +63,7 @@ export function AccountsPage() {
         )}
         <p className="hint" style={{ marginTop: 16, marginBottom: 0 }}>
           Замороженные счета (вклады, копилки) не входят в свободные деньги. Чтобы заморозить или разморозить деньги, откройте счёт и сделайте перевод.
+          Кредитки и кредиты — не ваши деньги: их долг вычитается из «Всего». Покупка с кредитки — обычный расход, погашение — перевод на неё.
         </p>
       </section>
 
@@ -85,14 +92,17 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
   const [isFrozen, setIsFrozen] = useState(account?.isFrozen ?? false);
   const [frozenTouched, setFrozenTouched] = useState(!!account);
   const [note, setNote] = useState(account?.note ?? '');
+  const [creditLimit, setCreditLimit] = useState(account?.creditLimit ? amountToInput(account.creditLimit) : '');
   const [initial, setInitial] = useState('');
-  const [actual, setActual] = useState(account ? amountToInput(account.balance) : '');
+  // у кредитов вводим долг положительным числом, храним отрицательным балансом
+  const [actual, setActual] = useState(account ? amountToInput(isCredit(account) ? Math.max(0, -account.balance) : account.balance) : '');
+  const credit = isCreditKind(kind);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
 
   const pickKind = (k: AccountKind) => {
     setKind(k);
-    if (!frozenTouched) setIsFrozen(k === 'deposit' || k === 'savings');
+    if (!frozenTouched || isCreditKind(k)) setIsFrozen(k === 'deposit' || k === 'savings');
   };
 
   async function submit(e: FormEvent) {
@@ -101,16 +111,19 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
     setFields({});
     const init = initial.trim() ? parseAmount(initial) : 0;
     if (init === null) return setFields({ initialBalance: 'Не получается разобрать сумму' });
+    const limit = kind === 'credit' && creditLimit.trim() ? parseAmount(creditLimit) : null;
+    if (kind === 'credit' && creditLimit.trim() && (limit === null || limit < 0)) return setFields({ creditLimit: 'Не получается разобрать сумму' });
     try {
       await save.mutateAsync({
         id: account?.id,
         data: {
           name: name.trim(),
           kind,
-          isFrozen,
+          isFrozen: credit ? false : isFrozen,
+          creditLimit: kind === 'credit' ? limit : null,
           bankName: kind === 'cash' ? null : bankName.trim() || null,
           note: note.trim() || null,
-          ...(account ? {} : { initialBalance: init }),
+          ...(account ? {} : { initialBalance: credit ? -Math.abs(init) : init }),
         },
       });
       onClose();
@@ -124,8 +137,9 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
 
   async function doReconcile() {
     if (!account) return;
-    const v = parseAmount(actual);
-    if (v === null) return setFields({ actual: 'Не получается разобрать сумму' });
+    const parsed = parseAmount(actual);
+    if (parsed === null) return setFields({ actual: 'Не получается разобрать сумму' });
+    const v = isCredit(account) ? -Math.abs(parsed) : parsed;
     const r = await reconcile.mutateAsync({ id: account.id, actualBalance: v });
     setError(null);
     alert(r.adjustment === 0 ? 'Баланс совпадает' : `Добавлена корректировка ${formatMoney(r.adjustment, { sign: 'always' })}`);
@@ -145,8 +159,10 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
   }
 
   const active = accounts.filter((a) => !a.isArchived && a.id !== account?.id);
-  const frozenTarget = active.find((a) => a.isFrozen);
-  const freeTarget = active.find((a) => !a.isFrozen);
+  const frozenTarget = active.find((a) => a.isFrozen && !isCredit(a));
+  const freeTarget = active.find((a) => !a.isFrozen && !isCredit(a));
+  const accCredit = !!account && isCredit(account);
+  const debt = account ? debtOf(account) : 0;
 
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -158,20 +174,31 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
 
         {account && !account.isArchived && (
           <div className="sheet-section">
-            <div className="cap-label">Остаток</div>
-            <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 12 }}>
-              <Money value={account.balance} className={account.isFrozen ? 'frz' : ''} />
-            </div>
+            {accCredit ? (
+              <CreditSummary account={account} debt={debt} />
+            ) : (
+              <>
+                <div className="cap-label">Остаток</div>
+                <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 12 }}>
+                  <Money value={account.balance} className={account.isFrozen ? 'frz' : ''} />
+                </div>
+              </>
+            )}
             <div className="chips">
               <button type="button" className="chip" onClick={() => { onClose(); openTx({ type: 'transfer', accountId: account.id }); }}>
                 <ArrowLeftRight size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Перевести
               </button>
-              {!account.isFrozen && frozenTarget && (
+              {accCredit && freeTarget && debt > 0 && (
+                <button type="button" className="chip" onClick={() => { onClose(); openTx({ type: 'transfer', accountId: freeTarget.id, toAccountId: account.id }); }}>
+                  <CreditCard size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Погасить
+                </button>
+              )}
+              {!accCredit && !account.isFrozen && frozenTarget && (
                 <button type="button" className="chip" onClick={() => { onClose(); openTx({ type: 'transfer', accountId: account.id, toAccountId: frozenTarget.id }); }}>
                   <Snowflake size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Заморозить
                 </button>
               )}
-              {account.isFrozen && freeTarget && (
+              {!accCredit && account.isFrozen && freeTarget && (
                 <button type="button" className="chip" onClick={() => { onClose(); openTx({ type: 'transfer', accountId: account.id, toAccountId: freeTarget.id }); }}>
                   <Sun size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Разморозить
                 </button>
@@ -188,7 +215,7 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
 
         <div className="sheet-section">
           <span className="label">Тип</span>
-          <div className="segmented">
+          <div className="segmented wrap">
             {KINDS.map((k) => (
               <button key={k.v} type="button" aria-pressed={kind === k.v} onClick={() => pickKind(k.v)}>{k.label}</button>
             ))}
@@ -202,19 +229,35 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
           </label>
         )}
 
-        <div className="choice" style={{ marginBottom: 16 }}>
-          <label>
-            <input type="checkbox" checked={isFrozen} onChange={(e) => { setIsFrozen(e.target.checked); setFrozenTouched(true); }} />
-            <span>
-              <b>Заморожено</b>
-              <small>Деньги на этом счёте не входят в свободные — вклад или накопления</small>
-            </span>
+        {credit ? (
+          <p className="hint" style={{ marginTop: 0 }}>
+            {kind === 'credit'
+              ? 'Кредитка: доступный лимит показывается отдельно и не входит в свободные деньги. Покупки — обычные расходы, погашение — перевод на карту.'
+              : 'Кредит или ипотека: долг вычитается из капитала. Платёж по кредиту — перевод на этот счёт, проценты — отдельный расход.'}
+          </p>
+        ) : (
+          <div className="choice" style={{ marginBottom: 16 }}>
+            <label>
+              <input type="checkbox" checked={isFrozen} onChange={(e) => { setIsFrozen(e.target.checked); setFrozenTouched(true); }} />
+              <span>
+                <b>Заморожено</b>
+                <small>Деньги на этом счёте не входят в свободные — вклад или накопления</small>
+              </span>
+            </label>
+          </div>
+        )}
+
+        {kind === 'credit' && (
+          <label className={'field' + (fields.creditLimit ? ' has-error' : '')}>
+            <span>Кредитный лимит</span>
+            <input className="input num" inputMode="decimal" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} placeholder="Например, 100 000" />
+            {fields.creditLimit && <span className="field-error">{fields.creditLimit}</span>}
           </label>
-        </div>
+        )}
 
         {!account && (
           <label className={'field' + (fields.initialBalance ? ' has-error' : '')}>
-            <span>Сколько сейчас на счёте</span>
+            <span>{credit ? 'Сколько сейчас должны' : 'Сколько сейчас на счёте'}</span>
             <input className="input num" inputMode="decimal" value={initial} onChange={(e) => setInitial(e.target.value)} placeholder="0 ₽" />
             {fields.initialBalance && <span className="field-error">{fields.initialBalance}</span>}
           </label>
@@ -229,10 +272,10 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
           <div className="sheet-section">
             <span className="label">Сверить баланс</span>
             <div className="filters-row">
-              <input className="input num" style={{ flex: 1 }} inputMode="decimal" value={actual} onChange={(e) => setActual(e.target.value)} aria-label="Фактический остаток" />
+              <input className="input num" style={{ flex: 1 }} inputMode="decimal" value={actual} onChange={(e) => setActual(e.target.value)} aria-label={accCredit ? 'Фактический долг' : 'Фактический остаток'} />
               <button type="button" className="btn" onClick={doReconcile} disabled={reconcile.isPending}>Сверить</button>
             </div>
-            {fields.actual ? <p className="field-error">{fields.actual}</p> : <p className="hint" style={{ margin: '6px 0 0' }}>Введите, сколько на счёте на самом деле — разница запишется корректировкой.</p>}
+            {fields.actual ? <p className="field-error">{fields.actual}</p> : <p className="hint" style={{ margin: '6px 0 0' }}>{accCredit ? 'Введите, сколько вы должны на самом деле — разница запишется корректировкой.' : 'Введите, сколько на счёте на самом деле — разница запишется корректировкой.'}</p>}
           </div>
         )}
 
@@ -249,6 +292,28 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+/** Шапка кредитного счёта: долг, доступный остаток и заполненность лимита. */
+function CreditSummary({ account, debt }: { account: Account; debt: number }) {
+  const limit = account.kind === 'credit' ? account.creditLimit : null;
+  const used = limit ? Math.min(100, Math.round((debt / limit) * 100)) : 0;
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div className="cap-label">{debt ? 'Долг' : account.balance > 0 ? 'Переплата' : 'Долга нет'}</div>
+      <div className="crd" style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-.02em' }}>
+        <Money value={debt || Math.max(0, account.balance)} />
+      </div>
+      {limit ? (
+        <>
+          <div className="credit-bar" role="img" aria-label={`Использовано ${used}% лимита`}><i style={{ width: `${used}%` }} /></div>
+          <div className="hint" style={{ margin: '6px 0 0' }}>
+            Доступно <b className="num">{formatMoney(creditAvailableOf(account))}</b> из {formatMoney(limit)}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

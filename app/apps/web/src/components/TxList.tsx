@@ -25,7 +25,7 @@ export function TxRow({ tx, l, onClick }: { tx: Transaction; l: Lookups; onClick
   let sum;
   if (tx.type === 'expense') sum = <Money value={-tx.amount} className="tx-sum" />;
   else if (tx.type === 'income') sum = <Money value={tx.amount} sign="always" className="tx-sum in" />;
-  else if (tx.type === 'transfer') sum = <Money value={tx.amount} sign="never" className={'tx-sum' + (d.kind === 'move' ? '' : ' tr')} />;
+  else if (tx.type === 'transfer') sum = <Money value={tx.amount} sign="never" className={'tx-sum' + (d.kind === 'freeze' || d.kind === 'unfreeze' ? ' tr' : d.kind === 'repay' || d.kind === 'borrow' ? ' crd' : '')} />;
   else sum = <Money value={tx.amount} sign="always" className="tx-sum adj" />;
 
   return (

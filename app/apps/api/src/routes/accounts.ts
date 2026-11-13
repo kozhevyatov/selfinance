@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { accountCreateSchema, accountUpdateSchema, reconcileSchema, todayISO } from '@selfinance/shared';
+import { accountCreateSchema, accountUpdateSchema, isCreditKind, reconcileSchema, todayISO } from '@selfinance/shared';
 import { getDb } from '../context';
 import { requireUser } from '../lib/auth';
 import { badRequest, notFound, nowIso, uuidv7 } from '../lib/util';
@@ -31,7 +31,9 @@ export default async function accountRoutes(app: FastifyInstance) {
       budget_id: budgetId,
       name: input.name,
       kind: input.kind,
-      is_frozen: (input.isFrozen ?? (input.kind === 'deposit' || input.kind === 'savings')) ? 1 : 0,
+      // кредитные счета не бывают замороженными
+      is_frozen: !isCreditKind(input.kind) && (input.isFrozen ?? (input.kind === 'deposit' || input.kind === 'savings')) ? 1 : 0,
+      credit_limit: input.kind === 'credit' ? input.creditLimit ?? null : null,
       parent_account_id: input.parentAccountId ?? null,
       bank_name: input.bankName ?? null,
       color: input.color ?? null,
@@ -75,6 +77,10 @@ export default async function accountRoutes(app: FastifyInstance) {
     if (input.color !== undefined) patch.color = input.color ?? null;
     if (input.icon !== undefined) patch.icon = input.icon ?? null;
     if (input.note !== undefined) patch.note = input.note ?? null;
+    const kind = input.kind ?? acc.kind;
+    if (input.creditLimit !== undefined) patch.credit_limit = input.creditLimit ?? null;
+    if (kind !== 'credit') patch.credit_limit = null;
+    if (isCreditKind(kind)) patch.is_frozen = 0;
     if (input.isArchived !== undefined) patch.is_archived = input.isArchived ? 1 : 0;
     if (input.sort !== undefined) patch.sort = input.sort;
     await db.updateTable('accounts').set(patch).where('id', '=', accountId).execute();

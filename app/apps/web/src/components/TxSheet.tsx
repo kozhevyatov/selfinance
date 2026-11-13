@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { addDays, amountToInput, formatMoney, parseAmount, todayISO, type Planned, type Recurring, type Transaction, type TxType } from '@selfinance/shared';
+import { addDays, amountToInput, formatMoney, parseAmount, isCredit, todayISO, type Account, type Planned, type Recurring, type Transaction, type TxType } from '@selfinance/shared';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
@@ -45,7 +45,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
     }
   })();
   const planAcc = plan ? activeAccounts.find((a) => a.id === plan.accountId)?.id : undefined;
-  const defaultAcc = planAcc ?? activeAccounts.find((a) => a.id === lastAcc)?.id ?? activeAccounts.find((a) => !a.isFrozen)?.id ?? activeAccounts[0]?.id ?? '';
+  const defaultAcc = planAcc ?? activeAccounts.find((a) => a.id === lastAcc)?.id ?? activeAccounts.find((a) => !a.isFrozen && !isCredit(a))?.id ?? activeAccounts[0]?.id ?? '';
 
   const [type, setType] = useState<TxType>(edit?.type ?? pay?.type ?? (plan ? 'expense' : opts.type) ?? 'expense');
   const [amountStr, setAmountStr] = useState(edit ? amountToInput(edit.amount) : pay ? amountToInput(pay.amount) : plan ? amountToInput(plan.amount) : '');
@@ -132,7 +132,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
           date,
           accountId: accountId || null,
           toAccountId: type === 'transfer' ? toAccountId || null : null,
-          categoryId: regularAllowed ? categoryId : null,
+          categoryId: type === 'income' || type === 'expense' ? categoryId : null,
           comment: comment.trim() || null,
           recurringId: unlink ? null : ruleId,
           ...(plan ? { plannedId: plan.id } : {}),
@@ -264,7 +264,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
                 <label className={'field' + (fields.accountId ? ' has-error' : '')} style={{ marginBottom: 0 }}>
                   <span>Откуда</span>
                   <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-                    {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.isFrozen ? ' ❄' : ''}</option>)}
+                    {activeAccounts.map((a) => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}
                   </select>
                 </label>
                 <label className={'field' + (fields.toAccountId ? ' has-error' : '')} style={{ marginBottom: 0 }}>
@@ -272,7 +272,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
                   <select className="select" value={toAccountId} onChange={(e) => setToAccountId(e.target.value)}>
                     <option value="">—</option>
                     {activeAccounts.filter((a) => a.id !== accountId).map((a) => (
-                      <option key={a.id} value={a.id}>{a.name}{a.isFrozen ? ' ❄' : ''}</option>
+                      <option key={a.id} value={a.id}>{accLabel(a)}</option>
                     ))}
                   </select>
                 </label>
@@ -281,7 +281,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
               <label className="field" style={{ marginBottom: 0 }}>
                 <span>Счёт</span>
                 <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-                  {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.isFrozen ? ' ❄' : ''}</option>)}
+                  {activeAccounts.map((a) => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}
                 </select>
               </label>
             )}
@@ -387,3 +387,5 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
     </div>
   );
 }
+
+const accLabel = (a: Account) => a.name + (a.isFrozen ? ' ❄' : '') + (a.kind === 'credit' ? ' · кредитка' : a.kind === 'loan' ? ' · кредит' : '');

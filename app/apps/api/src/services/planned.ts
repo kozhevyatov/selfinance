@@ -7,6 +7,7 @@ import {
   type Planned,
   type PlannedItem,
   type PlannedOverview,
+  splitCapital,
 } from '@selfinance/shared';
 import type { DB } from '../db';
 import type { PlannedTable, RecurringTable } from '../db/types';
@@ -83,7 +84,7 @@ export function occurrences(rule: RecurringTable, skips: Set<string>, today: str
  */
 export async function buildOverview(db: DB, budgetId: string, today: string): Promise<PlannedOverview> {
   const accounts = await listAccounts(db, budgetId);
-  const free = accounts.filter((a) => !a.isFrozen).reduce((s, a) => s + a.balance, 0);
+  const { free } = splitCapital(accounts); // кредитные деньги в прогноз не входят
 
   const rows = await db
     .selectFrom('planned')

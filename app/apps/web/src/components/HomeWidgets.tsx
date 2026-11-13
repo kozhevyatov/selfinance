@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Snowflake } from 'lucide-react';
+import { CreditCard, Snowflake } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatMoney, moneyParts, type Account, type Capital, type LimitStatus, type Summary } from '@selfinance/shared';
+import { creditAvailableOf, debtOf, formatMoney, isCredit, moneyParts, type Account, type Capital, type LimitStatus, type Summary } from '@selfinance/shared';
 import { CatIcon } from '../lib/icons';
 import type { Lookups } from '../lib/lookups';
 import { Money } from './Money';
@@ -10,7 +10,7 @@ import { Money } from './Money';
 
 export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: ReactNode }) {
   const p = moneyParts(capital.free, { forceKop: false });
-  const free = capital.accounts.filter((a) => !a.isFrozen && a.balance > 0).sort((a, b) => b.balance - a.balance);
+  const free = capital.accounts.filter((a) => !a.isFrozen && !isCredit(a) && a.balance > 0).sort((a, b) => b.balance - a.balance);
   const frozenTotal = capital.accounts.filter((a) => a.isFrozen && a.balance > 0).reduce((s, a) => s + a.balance, 0);
   const frozenCount = capital.accounts.filter((a) => a.isFrozen).length;
   const shown = free.slice(0, 3);
@@ -29,11 +29,15 @@ export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: Rea
             {p.kop && <span className="kop">{p.kop}</span>}
             <span className="cur">₽</span>
           </div>
+          {capital.creditAvailable > 0 && (
+            <div className="cap-credit">+ <Money value={capital.creditAvailable} round /> доступно по кредиткам</div>
+          )}
           {extra}
         </div>
-        {frozenCount > 0 && (
+        {(frozenCount > 0 || capital.debt > 0) && (
           <div className="cap-side">
-            <div className="frz"><span>Заморожено</span><b><Money value={capital.frozen} /></b></div>
+            {frozenCount > 0 && <div className="frz"><span>Заморожено</span><b><Money value={capital.frozen} /></b></div>}
+            {capital.debt > 0 && <div className="crd"><span>Долг</span><b><Money value={capital.debt} /></b></div>}
             <div><span>Всего</span><b><Money value={capital.total} /></b></div>
           </div>
         )}
@@ -113,7 +117,8 @@ export function MonthTotals({ s, prevLabel }: { s: Summary; prevLabel: PrevLabel
 
 /* ---------- Расходы по дням ---------- */
 
-export function DaysChart({ s, today, kind = 'expense' }: { s: Summary; today: string; kind?: 'expense' | 'income' }) {
+export function DaysChart({ s, today, kind = 'expense' }: { s: Summary; today: string; kind?: 'expense' | 'income' | 'both' }) {
+  if (kind === 'both') return <DaysChartBoth s={s} today={today} />;
   const days = s.daily;
   const val = (d: Summary['daily'][number]) => d[kind];
   const avg = kind === 'expense' ? s.avgPerDay : s.daysElapsed ? Math.round(s.income / s.daysElapsed) : 0;
@@ -145,13 +150,7 @@ export function DaysChart({ s, today, kind = 'expense' }: { s: Summary; today: s
           );
         })}
       </div>
-      <div className="days-axis" style={cols}>
-        {days.map((d) => {
-          const n = Number(d.date.slice(8));
-          const show = n === 1 || n % 5 === 0 || (d.date === today && !narrow);
-          return <span key={d.date} style={d.date === today ? { color: 'var(--ink)', fontWeight: 600 } : undefined}>{show ? n : ''}</span>;
-        })}
-      </div>
+      <DaysAxis days={days} today={today} narrow={narrow} />
       {forecast !== null && (
         <div className="days-note">
           <span>Прошло {s.daysElapsed} {plural(s.daysElapsed, 'день', 'дня', 'дней')} из {s.daysTotal}</span>
@@ -160,6 +159,57 @@ export function DaysChart({ s, today, kind = 'expense' }: { s: Summary; today: s
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function DaysAxis({ days, today, narrow }: { days: Summary['daily']; today: string; narrow: boolean }) {
+  return (
+    <div className="days-axis" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
+      {days.map((d) => {
+        const n = Number(d.date.slice(8));
+        const show = n === 1 || n % 5 === 0 || (d.date === today && !narrow);
+        return <span key={d.date} style={d.date === today ? { color: 'var(--ink)', fontWeight: 600 } : undefined}>{show ? n : ''}</span>;
+      })}
+    </div>
+  );
+}
+
+/** Режим «Всё»: в каждом дне два столбика — приход и расход. */
+function DaysChartBoth({ s, today }: { s: Summary; today: string }) {
+  const days = s.daily;
+  const max = Math.max(1, ...days.flatMap((d) => [d.income, d.expense])) * 1.05;
+  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+  const h = (v: number) => (v ? `${Math.max(3, (v / max) * 100)}%` : '0');
+
+  return (
+    <div className="days">
+      <div className="days-chart" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
+        {days.map((d) => {
+          const dayNum = Number(d.date.slice(8));
+          if (d.date > today) return <div key={d.date} className="d future" />;
+          const empty = !d.income && !d.expense;
+          return (
+            <div
+              key={d.date}
+              className={'d2' + (empty ? ' zero' : '') + (d.date === today ? ' today' : '')}
+              title={`${dayNum}: приход ${formatMoney(d.income)}, расход ${formatMoney(d.expense)}`}
+            >
+              {empty ? <i className="z" /> : (
+                <>
+                  <i className="b-in" style={{ height: h(d.income) }} />
+                  <i className="b-out" style={{ height: h(d.expense) }} />
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <DaysAxis days={days} today={today} narrow={narrow} />
+      <div className="legend">
+        <span><i style={{ background: 'var(--income)' }} />Приход</span>
+        <span><i style={{ background: 'var(--expense)' }} />Расход</span>
+      </div>
     </div>
   );
 }
@@ -271,23 +321,41 @@ export function bankBadge(a: Account) {
   return name.slice(0, 1).toUpperCase();
 }
 
+/** Подпись кредитного счёта: банк, сколько доступно, заметка. */
+function creditSub(a: Account) {
+  const parts: string[] = [];
+  if (a.bankName) parts.push(a.bankName);
+  if (a.kind === 'credit' && a.creditLimit) parts.push(`доступно ${formatMoney(creditAvailableOf(a))} из ${formatMoney(a.creditLimit)}`);
+  else if (a.kind === 'credit') parts.push('кредитка');
+  else parts.push(debtOf(a) ? 'кредит' : 'кредит погашен');
+  if (a.note) parts.push(a.note);
+  return parts.join(', ');
+}
+
 export function AccountsList({ accounts, onClick }: { accounts: Account[]; onClick?: (a: Account) => void }) {
-  const free = accounts.filter((a) => !a.isFrozen);
-  const frozen = accounts.filter((a) => a.isFrozen);
-  const row = (a: Account) => (
-    <div className={'acc' + (a.isFrozen ? ' frozen' : '')} key={a.id} onClick={onClick ? () => onClick(a) : undefined} style={onClick ? { cursor: 'pointer' } : undefined}>
-      <div className="acc-name">
-        <span className="bank" style={a.color ? { background: a.color, color: '#fff' } : a.isFrozen ? { background: 'var(--frozen-soft)', color: 'var(--frozen)' } : undefined}>
-          {bankBadge(a)}
-        </span>
-        <span>
-          {a.name}
-          {(a.bankName || a.note) && <small>{[a.bankName, a.note].filter(Boolean).join(', ')}</small>}
-        </span>
+  const free = accounts.filter((a) => !a.isFrozen && !isCredit(a));
+  const frozen = accounts.filter((a) => a.isFrozen && !isCredit(a));
+  const credit = accounts.filter(isCredit);
+  const row = (a: Account) => {
+    const cr = isCredit(a);
+    const sub = cr ? creditSub(a) : [a.bankName, a.note].filter(Boolean).join(', ');
+    const badge = a.color
+      ? { background: a.color, color: '#fff' }
+      : cr ? { background: 'var(--credit-soft)', color: 'var(--credit)' }
+      : a.isFrozen ? { background: 'var(--frozen-soft)', color: 'var(--frozen)' } : undefined;
+    return (
+      <div className={'acc' + (a.isFrozen ? ' frozen' : '') + (cr ? ' credit' : '')} key={a.id} onClick={onClick ? () => onClick(a) : undefined} style={onClick ? { cursor: 'pointer' } : undefined}>
+        <div className="acc-name">
+          <span className="bank" style={badge}>{bankBadge(a)}</span>
+          <span>
+            {a.name}
+            {sub && <small>{sub}</small>}
+          </span>
+        </div>
+        <Money value={a.balance} className={'acc-sum' + (!cr && a.balance < 0 ? ' exp' : '')} />
       </div>
-      <Money value={a.balance} className={'acc-sum' + (a.balance < 0 ? ' exp' : '')} />
-    </div>
-  );
+    );
+  };
   return (
     <>
       {free.length > 0 && (
@@ -300,6 +368,12 @@ export function AccountsList({ accounts, onClick }: { accounts: Account[]; onCli
         <div className="acc-group">
           <h3 className="frz"><Snowflake size={14} />Заморожено</h3>
           {frozen.map(row)}
+        </div>
+      )}
+      {credit.length > 0 && (
+        <div className="acc-group">
+          <h3 className="crd"><CreditCard size={14} />Кредиты</h3>
+          {credit.map(row)}
         </div>
       )}
     </>

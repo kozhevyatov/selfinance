@@ -46,6 +46,7 @@ export function toAccount(a: AccountsTable, balance: number): Account {
     note: a.note,
     sort: a.sort,
     isArchived: !!a.is_archived,
+    creditLimit: a.kind === 'credit' && a.credit_limit != null ? num(a.credit_limit) : null,
     balance,
   };
 }

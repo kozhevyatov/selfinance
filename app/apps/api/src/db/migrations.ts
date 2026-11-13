@@ -258,6 +258,13 @@ migrations['0005_planned_no_reserve'] = {
   },
 };
 
+migrations['0006_credit'] = {
+  async up(db: Kysely<any>) {
+    // кредитные счета: kind = 'credit' (кредитка) | 'loan' (кредит); лимит кредитки в копейках
+    await db.schema.alterTable('accounts').addColumn('credit_limit', 'bigint').execute();
+  },
+};
+
 class InlineProvider implements MigrationProvider {
   async getMigrations() {
     return migrations;

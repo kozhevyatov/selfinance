@@ -17,6 +17,8 @@
   --frozen: #0E9AD6;
   --frozen-soft: #E3F4FC;
   --frozen-hatch: rgba(14, 154, 214, .22);
+  --credit: #B7791F;
+  --credit-soft: #FDF3DC;
   --radius-l: 22px;
   --radius-m: 14px;
   --radius-s: 10px;
@@ -43,6 +45,8 @@
   --frozen: #38BDF8;
   --frozen-soft: #132A36;
   --frozen-hatch: rgba(56, 189, 248, .28);
+  --credit: #F2C14E;
+  --credit-soft: #33290F;
   --shadow: 0 0 0 1px var(--line);
   --shadow-pop: 0 0 0 1px var(--line), 0 16px 48px -12px rgba(0, 0, 0, .6);
   color-scheme: dark;
@@ -272,6 +276,7 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .acc-name small { display: block; font-size: 12.5px; color: var(--muted); font-weight: 400 }
 .bank { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; background: var(--surface-2); color: var(--ink-2) }
 .acc.frozen .acc-sum { color: var(--frozen) }
+.acc.credit .acc-sum { color: var(--credit) }
 .acc-sum { font-weight: 600; font-size: 14.5px }
 
 /* ===== Лента операций ===== */
@@ -575,6 +580,13 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .stats-filter .select { flex: 1 1 220px; max-width: 320px }
 .dyn-col.single i { width: 56%; max-width: 26px }
 .days-chart .d.d-in:not(.future):not(.zero) { background: var(--income) }
+.d2 { display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 100%; min-width: 0 }
+.d2 i { flex: 1 1 0; max-width: 12px; min-width: 2px; border-radius: 3px 3px 1px 1px; opacity: .85 }
+.d2 .b-in { background: var(--income) }
+.d2 .b-out { background: var(--expense) }
+.d2 i.z { max-width: none; height: 3px; background: var(--line); opacity: 1 }
+.d2.today i { opacity: 1 }
+.d2.today { box-shadow: inset 0 -2px 0 var(--ink-2) }
 @media (max-width: 640px) {
   .stats-filter .segmented, .stats-filter .select { max-width: none; flex-basis: 100% }
 }
@@ -618,3 +630,14 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .fc-start, .fc-total { font-size: 15.5px }
 .fc-total { border-bottom: 0; padding-top: 12px }
 .fc-total.neg b { color: var(--expense) }
+
+/* ===== Кредиты ===== */
+.crd { color: var(--credit) }
+.cap-side .crd b { color: var(--credit) }
+.acc-group h3.crd { color: var(--credit) }
+.tx-sum.crd { color: var(--credit) }
+.cap-credit { margin-top: 6px; font-size: 13px; color: var(--credit); font-weight: 500 }
+.credit-bar { margin-top: 10px; height: 8px; border-radius: 99px; background: var(--credit-soft); overflow: hidden }
+.credit-bar i { display: block; height: 100%; border-radius: 99px; background: var(--credit) }
+.segmented.wrap { flex-wrap: wrap; border-radius: 18px }
+.segmented.wrap button { flex: 1 1 28%; white-space: nowrap }

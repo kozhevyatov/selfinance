@@ -45,7 +45,8 @@ export interface Account {
   note: string | null;
   sort: number;
   isArchived: boolean;
-  balance: number;
+  creditLimit: number | null;
+  balance: number; // у кредитов отрицательный = долг
 }
 
 export interface Category {
@@ -108,9 +109,11 @@ export interface Summary {
 }
 
 export interface Capital {
-  free: number;
+  free: number; // только свои деньги
   frozen: number;
-  total: number;
+  debt: number; // долг по кредиткам и кредитам, положительное число
+  creditAvailable: number; // сколько ещё можно потратить с кредиток
+  total: number; // свободные + замороженные − долг
   accounts: Account[];
 }
 

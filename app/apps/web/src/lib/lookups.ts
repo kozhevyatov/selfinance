@@ -1,3 +1,4 @@
+import { isCredit } from '@selfinance/shared';
 import { useMemo } from 'react';
 import type { Account, Category, Transaction } from '@selfinance/shared';
 import { useAllAccounts, useCategories } from './queries';
@@ -39,12 +40,16 @@ export function describeTx(tx: Transaction, l: Lookups) {
     const from = acc?.name ?? 'Счёт';
     const dest = to?.name ?? 'Счёт';
     let title = 'Перевод';
-    let kind: 'freeze' | 'unfreeze' | 'move' = 'move';
-    if (to?.isFrozen && !acc?.isFrozen) { title = `Заморожено в «${dest}»`; kind = 'freeze'; }
+    let kind: 'freeze' | 'unfreeze' | 'repay' | 'borrow' | 'move' = 'move';
+    const toCredit = !!to && isCredit(to);
+    const fromCredit = !!acc && isCredit(acc);
+    if (toCredit && !fromCredit) { title = `Погашение «${dest}»`; kind = 'repay'; }
+    else if (fromCredit && !toCredit) { title = `С кредита «${from}»`; kind = 'borrow'; }
+    else if (to?.isFrozen && !acc?.isFrozen) { title = `Заморожено в «${dest}»`; kind = 'freeze'; }
     else if (acc?.isFrozen && !to?.isFrozen) { title = `Разморожено из «${from}»`; kind = 'unfreeze'; }
     return {
       title, sub: tx.comment ? `${from} → ${dest}, ${tx.comment}` : `${from} → ${dest}`,
-      icon: kind === 'move' ? 'swap' : 'snow', color: null as string | null, kind,
+      icon: kind === 'freeze' || kind === 'unfreeze' ? 'snow' : kind === 'move' ? 'swap' : 'card', color: null as string | null, kind,
     };
   }
   if (tx.type === 'adjustment') {

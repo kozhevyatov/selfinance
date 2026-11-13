@@ -7,7 +7,8 @@ const optId = id.nullish();
 export const registrationModes = ['open', 'invite', 'closed'] as const;
 export type RegistrationMode = (typeof registrationModes)[number];
 
-export const accountKinds = ['cash', 'bank', 'deposit', 'savings'] as const;
+// credit — кредитная карта (с лимитом), loan — кредит/ипотека (только долг)
+export const accountKinds = ['cash', 'bank', 'deposit', 'savings', 'credit', 'loan'] as const;
 export type AccountKind = (typeof accountKinds)[number];
 
 export const txTypes = ['income', 'expense', 'transfer', 'adjustment'] as const;
@@ -88,6 +89,7 @@ export const accountCreateSchema = z.object({
   color: z.string().max(16).nullish(),
   icon: z.string().max(32).nullish(),
   note: z.string().max(1000).nullish(),
+  creditLimit: z.number().int().min(0).nullish(), // копейки, только для кредитной карты
   initialBalance: z.number().int().optional(), // копейки
 });
 export const accountUpdateSchema = accountCreateSchema.omit({ initialBalance: true }).partial().extend({

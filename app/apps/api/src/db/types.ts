@@ -72,8 +72,9 @@ export interface AccountsTable {
   id: string;
   budget_id: string;
   name: string;
-  kind: 'cash' | 'bank' | 'deposit' | 'savings';
+  kind: 'cash' | 'bank' | 'deposit' | 'savings' | 'credit' | 'loan';
   is_frozen: number;
+  credit_limit?: number | null;
   parent_account_id: string | null;
   bank_name: string | null;
   color: string | null;

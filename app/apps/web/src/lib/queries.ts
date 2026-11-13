@@ -95,6 +95,7 @@ export interface AccountInput {
   bankName?: string | null;
   note?: string | null;
   color?: string | null;
+  creditLimit?: number | null;
   initialBalance?: number;
   isArchived?: boolean;
 }
