@@ -262,7 +262,7 @@ export function PlannedSheet({ plan, l, onClose, initialType = 'expense' }: { pl
             <option value="">Без категории</option>
             {tops.map((t) => [
               <option key={t.id} value={t.id}>{t.name}</option>,
-              ...cats.filter((c) => c.parentId === t.id).map((c) => <option key={c.id} value={c.id}>{' '}{c.name}</option>),
+              ...cats.filter((c) => c.parentId === t.id).map((c) => <option key={c.id} value={c.id}>{'\u00A0\u00A0\u00A0↳ '}{c.name}</option>),
             ])}
           </select>
         </label>
