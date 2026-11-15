@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Budget } from '@selfinance/shared';
+import { currencySymbol, getCurrentCurrency, setCurrentCurrency, type Budget } from '@selfinance/shared';
 import { get } from './api';
 
 interface BudgetState {
@@ -33,6 +33,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
 
   const budget = budgets.find((b) => b.id === budgetId) ?? null;
   if (isLoading || !budget) return <div className="boot"><div className="spinner" /></div>;
+  // formatMoney() и <Money> берут знак валюты отсюда
+  setCurrentCurrency(budget.currency);
 
   return (
     <Ctx.Provider value={{ budgets, budget, budgetId: budget.id, setBudgetId, canEdit: budget.role !== 'viewer' }}>
@@ -45,4 +47,10 @@ export function useBudget() {
   const v = useContext(Ctx);
   if (!v) throw new Error('useBudget вне BudgetProvider');
   return v;
+}
+
+/** Знак валюты текущего бюджета: «₽», «$», «₸»… */
+export function useCurrencySymbol() {
+  const v = useContext(Ctx);
+  return currencySymbol(v?.budget?.currency ?? getCurrentCurrency());
 }

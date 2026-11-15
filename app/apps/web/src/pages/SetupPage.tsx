@@ -4,6 +4,7 @@ import type { AuthResponse, DbConfigInput, RegistrationMode } from '@selfinance/
 import { ApiError, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { AuthShell, Field } from './AuthPages';
+import { CurrencySelect, guessCurrency } from '../components/CurrencySelect';
 
 type Step = 0 | 1 | 2;
 
@@ -23,6 +24,7 @@ export function SetupPage() {
   const [name, setName] = useState('');
   const [login, setLogin] = useState('');
   const [adminPass, setAdminPass] = useState('');
+  const [currency, setCurrency] = useState(guessCurrency);
   const [registration, setRegistration] = useState<RegistrationMode>('closed');
 
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +65,7 @@ export function SetupPage() {
         admin: { name, login, password: adminPass },
         registration,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        currency,
       });
       if (res.auth) signIn(res.auth);
       await qc.invalidateQueries({ queryKey: ['meta'] });
@@ -128,6 +131,9 @@ export function SetupPage() {
             </Field>
             <Field label="Пароль" error={fields['admin.password']}>
               <input className="input" type="password" value={adminPass} onChange={(e) => setAdminPass(e.target.value)} autoComplete="new-password" minLength={6} required />
+            </Field>
+            <Field label="Валюта" error={fields.currency}>
+              <CurrencySelect value={currency} onChange={setCurrency} />
             </Field>
           </>
         )}

@@ -77,7 +77,7 @@ export default async function setupRoutes(app: FastifyInstance) {
       updated_at: now,
     };
     await db.insertInto('users').values(user).execute();
-    await createBudget(db, user.id, 'Личный', 'personal');
+    await createBudget(db, user.id, 'Личный', 'personal', input.currency);
     await setSetting(db, 'registration', input.registration);
 
     return { done: true, existing: false, auth: await issueTokens(user, 'Мастер настройки') };

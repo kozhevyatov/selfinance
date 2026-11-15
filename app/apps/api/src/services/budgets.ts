@@ -1,4 +1,5 @@
 import type { BudgetRole } from '@selfinance/shared';
+import { DEFAULT_CURRENCY } from '@selfinance/shared';
 import type { DB } from '../db';
 import { forbidden, notFound, nowIso, uuidv7 } from '../lib/util';
 
@@ -56,11 +57,11 @@ export async function seedCategories(db: DB, budgetId: string) {
 }
 
 /** Создаёт бюджет: владелец, счёт «Кошелёк», стартовые категории. */
-export async function createBudget(db: DB, userId: string, name: string, type: 'personal' | 'shared') {
+export async function createBudget(db: DB, userId: string, name: string, type: 'personal' | 'shared', currency = DEFAULT_CURRENCY) {
   const now = nowIso();
   const id = uuidv7();
   await db.transaction().execute(async (trx) => {
-    await trx.insertInto('budgets').values({ id, name, type, currency: 'RUB', created_by: userId, created_at: now, updated_at: now, deleted_at: null }).execute();
+    await trx.insertInto('budgets').values({ id, name, type, currency, created_by: userId, created_at: now, updated_at: now, deleted_at: null }).execute();
     await trx.insertInto('budget_members').values({ budget_id: id, user_id: userId, role: 'owner', joined_at: now }).execute();
     await trx
       .insertInto('accounts')

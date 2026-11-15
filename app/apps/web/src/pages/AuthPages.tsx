@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Wallet } from 'lucide-react';
 import type { AuthResponse, Meta } from '@selfinance/shared';
 import { ApiError, post } from '../lib/api';
+import { CurrencySelect, guessCurrency } from '../components/CurrencySelect';
 import { deviceName, useAuth } from '../lib/auth';
 
 export function AuthShell({ children }: { children: ReactNode }) {
@@ -81,6 +82,7 @@ export function RegisterPage({ meta }: { meta: Meta }) {
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState(params.get('invite') ?? '');
+  const [currency, setCurrency] = useState(guessCurrency);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -107,6 +109,7 @@ export function RegisterPage({ meta }: { meta: Meta }) {
         password,
         inviteCode: inviteCode || undefined,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        currency,
         deviceName: deviceName(),
       });
       signIn(auth);
@@ -134,6 +137,9 @@ export function RegisterPage({ meta }: { meta: Meta }) {
         </Field>
         <Field label="Пароль" error={fields.password}>
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={6} required />
+        </Field>
+        <Field label="Валюта" error={fields.currency}>
+          <CurrencySelect value={currency} onChange={setCurrency} />
         </Field>
         {meta.registration === 'invite' && (
           <Field label="Код приглашения" error={fields.inviteCode}>

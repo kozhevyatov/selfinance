@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Archive, ArrowLeftRight, CreditCard, Plus, Snowflake, Sun, X } from 'lucide-react';
-import { amountToInput, creditAvailableOf, debtOf, formatMoney, isCredit, isCreditKind, parseAmount, type Account, type AccountKind } from '@selfinance/shared';
+import { amountToInput, creditAvailableOf, debtOf, formatMoney, isCredit, isCreditKind, parseAmount, type Account, type AccountKind, currencySymbol, getCurrentCurrency } from '@selfinance/shared';
 import { AccountsList } from '../components/HomeWidgets';
 import { TopBar, useTxSheet } from '../components/Layout';
 import { Money } from '../components/Money';
@@ -275,7 +275,7 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
         {!account && (
           <label className={'field' + (fields.initialBalance ? ' has-error' : '')}>
             <span>{credit ? 'Сколько сейчас должны' : 'Сколько сейчас на счёте'}</span>
-            <input className="input num" inputMode="decimal" value={initial} onChange={(e) => setInitial(e.target.value)} placeholder="0 ₽" />
+            <input className="input num" inputMode="decimal" value={initial} onChange={(e) => setInitial(e.target.value)} placeholder={'0 ' + currencySymbol(getCurrentCurrency())} />
             {fields.initialBalance && <span className="field-error">{fields.initialBalance}</span>}
           </label>
         )}

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { budgetCreateSchema } from '@selfinance/shared';
+import { budgetCreateSchema, budgetUpdateSchema, DEFAULT_CURRENCY } from '@selfinance/shared';
 import { getDb } from '../context';
 import { requireUser } from '../lib/auth';
 import { nowIso } from '../lib/util';
@@ -23,16 +23,20 @@ export default async function budgetRoutes(app: FastifyInstance) {
 
   app.post('/budgets', async (req) => {
     const user = await requireUser(req);
-    const { name } = budgetCreateSchema.parse(req.body);
-    const id = await createBudget(getDb(), user.id, name, 'shared');
-    return { id, name, type: 'shared', currency: 'RUB', role: 'owner' };
+    const { name, currency = DEFAULT_CURRENCY } = budgetCreateSchema.parse(req.body);
+    const id = await createBudget(getDb(), user.id, name, 'shared', currency);
+    return { id, name, type: 'shared', currency, role: 'owner' };
   });
 
   app.patch<{ Params: { budgetId: string } }>('/budgets/:budgetId', async (req) => {
     const user = await requireUser(req);
     await requireBudget(getDb(), req.params.budgetId, user.id, 'owner');
-    const { name } = budgetCreateSchema.parse(req.body);
-    await getDb().updateTable('budgets').set({ name, updated_at: nowIso() }).where('id', '=', req.params.budgetId).execute();
+    // валюта — только обозначение: суммы при смене не пересчитываются
+    const { name, currency } = budgetUpdateSchema.parse(req.body);
+    const set: { name?: string; currency?: string; updated_at: string } = { updated_at: nowIso() };
+    if (name !== undefined) set.name = name;
+    if (currency !== undefined) set.currency = currency;
+    await getDb().updateTable('budgets').set(set).where('id', '=', req.params.budgetId).execute();
     return { ok: true };
   });
 }

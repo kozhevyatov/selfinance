@@ -8,6 +8,8 @@ import { useAuth } from '../lib/auth';
 import { setTheme, syncThemeColor } from '../lib/theme';
 import { canPromptInstall, isIOS, isStandalone, onInstallChange, promptInstall } from '../lib/pwa';
 import { Field } from './AuthPages';
+import { useBudget } from '../lib/budget';
+import { CurrencySelect } from '../components/CurrencySelect';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -19,6 +21,7 @@ export function SettingsPage() {
       <div className="settings">
         <InstallSection />
         <ProfileSection />
+        <CurrencySection />
         <PasswordSection />
         <ThemeSection />
         <SessionsSection />
@@ -106,6 +109,55 @@ function ProfileSection() {
         {error && <div className="form-error">{error}</div>}
         {msg && <div className="ok-note">{msg}</div>}
         <button className="btn btn-primary">Сохранить</button>
+      </form>
+    </section>
+  );
+}
+
+function CurrencySection() {
+  const qc = useQueryClient();
+  const { budget, budgets } = useBudget();
+  const [currency, setCurrency] = useState(budget?.currency ?? 'RUB');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const isOwner = budget?.role === 'owner';
+
+  useEffect(() => {
+    setCurrency(budget?.currency ?? 'RUB');
+    setMsg(null);
+    setError(null);
+  }, [budget?.id, budget?.currency]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!budget) return;
+    setMsg(null);
+    setError(null);
+    try {
+      await patch(`/budgets/${budget.id}`, { currency });
+      await qc.invalidateQueries({ queryKey: ['budgets'] });
+      setMsg('Сохранено');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось сохранить');
+    }
+  }
+
+  if (!budget) return null;
+  return (
+    <section className="panel">
+      <div className="panel-head"><h2>Валюта{budgets.length > 1 ? ` · ${budget.name}` : ''}</h2></div>
+      <form onSubmit={submit}>
+        <Field label="Валюта бюджета">
+          <CurrencySelect value={currency} onChange={setCurrency} disabled={!isOwner} />
+        </Field>
+        <p className="hint">
+          {isOwner
+            ? 'Меняется только обозначение: суммы не пересчитываются по курсу.'
+            : 'Сменить валюту может только владелец бюджета.'}
+        </p>
+        {error && <div className="form-error">{error}</div>}
+        {msg && <div className="ok-note">{msg}</div>}
+        {isOwner && <button className="btn btn-primary" disabled={currency === budget.currency}>Сохранить</button>}
       </form>
     </section>
   );

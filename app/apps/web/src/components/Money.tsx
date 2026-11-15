@@ -1,4 +1,5 @@
 import { moneyParts } from '@selfinance/shared';
+import { useCurrencySymbol } from '../lib/budget';
 
 interface Props {
   value: number;
@@ -11,12 +12,13 @@ interface Props {
 export function Money({ value, sign = 'auto', className, round }: Props) {
   const v = round ? Math.round(value / 100) * 100 : value;
   const p = moneyParts(v, { sign });
+  const sym = useCurrencySymbol();
   return (
     <span className={'num' + (className ? ' ' + className : '')}>
       {p.sign}
       {p.rub}
       {p.kop && <span className="kop">{p.kop}</span>}
-      {' ₽'}
+      {' ' + sym}
     </span>
   );
 }

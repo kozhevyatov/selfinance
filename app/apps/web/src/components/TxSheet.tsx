@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { addDays, amountToInput, formatMoney, parseAmount, isCredit, todayISO, type Account, type Planned, type Recurring, type Transaction, type TxType } from '@selfinance/shared';
+import { addDays, amountToInput, formatMoney, parseAmount, isCredit, todayISO, type Account, type Planned, type Recurring, type Transaction, type TxType, currencySymbol, getCurrentCurrency } from '@selfinance/shared';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
@@ -223,7 +223,7 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
           ref={amountRef}
           className="amount-input num"
           inputMode="decimal"
-          placeholder="0 ₽"
+          placeholder={'0 ' + currencySymbol(getCurrentCurrency())}
           value={amountStr}
           onChange={(e) => setAmountStr(e.target.value)}
           aria-label="Сумма"

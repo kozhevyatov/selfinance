@@ -63,7 +63,7 @@ export default async function authRoutes(app: FastifyInstance) {
     };
     await db.insertInto('users').values(user).execute();
     if (invite) await db.updateTable('invites').set({ used_by: user.id, used_at: now }).where('id', '=', invite.id).execute();
-    await createBudget(db, user.id, 'Личный', 'personal');
+    await createBudget(db, user.id, 'Личный', 'personal', input.currency);
     return issueTokens(user, input.deviceName);
   });
 

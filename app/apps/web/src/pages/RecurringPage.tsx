@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Pause, Plus, Trash2, X } from 'lucide-react';
-import { amountToInput, parseAmount, todayISO, type Recurring } from '@selfinance/shared';
+import { amountToInput, parseAmount, todayISO, type Recurring, currencySymbol, getCurrentCurrency } from '@selfinance/shared';
 import { TopBar } from '../components/Layout';
 import { Money } from '../components/Money';
 import { dueLabel, shortDate } from '../components/Upcoming';
@@ -191,7 +191,7 @@ function RecurringSheet({ rule, onClose }: { rule: Recurring | null; onClose: ()
         <div className="row2">
           <label className="field">
             <span>Сумма</span>
-            <input className="input num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0 ₽" />
+            <input className="input num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={'0 ' + currencySymbol(getCurrentCurrency())} />
           </label>
           <label className="field">
             <span>День месяца</span>

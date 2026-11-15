@@ -1,4 +1,5 @@
-/** Все суммы — целые копейки. */
+/** Все суммы — целые копейки (сотые доли валюты бюджета). */
+import { CURRENCIES, currencySymbol, getCurrentCurrency } from './currency';
 
 const NBSP = ' '; // неразрывный пробел перед ₽
 const THIN = ' '; // узкий неразрывный пробел между разрядами
@@ -30,19 +31,31 @@ export function moneyParts(kopecks: number, opts: { sign?: 'auto' | 'always' | '
   };
 }
 
-/** «12 345,67 ₽», «−280 ₽», «+142 000 ₽» */
-export function formatMoney(kopecks: number, opts: { sign?: 'auto' | 'always' | 'never'; currency?: boolean } = {}): string {
+/**
+ * «12 345,67 ₽», «−280 $», «+142 000 ₸».
+ * Знак валюты — текущей валюты бюджета (или currencyCode, если передан).
+ */
+export function formatMoney(
+  kopecks: number,
+  opts: { sign?: 'auto' | 'always' | 'never'; currency?: boolean; currencyCode?: string } = {},
+): string {
   const p = moneyParts(kopecks, opts);
-  return `${p.sign}${p.rub}${p.kop ?? ''}${opts.currency === false ? '' : NBSP + '₽'}`;
+  const sym = currencySymbol(opts.currencyCode ?? getCurrentCurrency());
+  return `${p.sign}${p.rub}${p.kop ?? ''}${opts.currency === false ? '' : NBSP + sym}`;
 }
+
+// знаки валют, которые можно вставить вместе с суммой (длинные — первыми)
+const SYMBOLS = [...new Set(CURRENCIES.flatMap((c) => [c.symbol, c.code]))].sort((a, b) => b.length - a.length);
 
 /**
  * Разбор суммы, введённой пользователем: «1 250,50», «350+120», «1000-15%»… не поддерживаем —
  * только + − * / и скобки. Возвращает копейки или null.
  */
 export function parseAmount(input: string): number | null {
-  const s = input
-    .replace(/[\s  ₽]/g, '')
+  let raw = input;
+  for (const sym of SYMBOLS) raw = raw.split(sym).join('');
+  const s = raw
+    .replace(/[\s  ]/g, '')
     .replace(/,/g, '.')
     .replace(/[−–]/g, '-')
     .replace(/[×х]/gi, '*')

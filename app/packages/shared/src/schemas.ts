@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { currencyCodes } from './currency';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД');
 const id = z.string().min(1).max(36);
@@ -43,6 +44,7 @@ export const setupSchema = z.object({
   }),
   registration: z.enum(registrationModes),
   timezone: z.string().max(64).optional(),
+  currency: currencySchema.optional(),
 });
 export type SetupInput = z.infer<typeof setupSchema>;
 
@@ -54,6 +56,7 @@ export const registerSchema = z.object({
   password: passwordSchema,
   inviteCode: z.string().max(64).optional(),
   timezone: z.string().max(64).optional(),
+  currency: currencySchema.optional(),
   deviceName: z.string().max(100).optional(),
 });
 
@@ -76,7 +79,17 @@ export const updateMeSchema = z.object({
 
 /* ---------- бюджеты ---------- */
 
-export const budgetCreateSchema = z.object({ name: z.string().trim().min(1).max(100) });
+export const currencySchema = z.enum(currencyCodes, { message: 'Неизвестная валюта' });
+
+export const budgetCreateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  currency: currencySchema.optional(),
+});
+
+export const budgetUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+  currency: currencySchema.optional(),
+});
 
 /* ---------- счета ---------- */
 

@@ -1,15 +1,17 @@
 import type { ReactNode } from 'react';
 import { CreditCard, Snowflake } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { creditAvailableOf, debtOf, formatMoney, isCredit, moneyParts, type Account, type Capital, type LimitStatus, type Summary } from '@selfinance/shared';
+import { currencySymbol, getCurrentCurrency, creditAvailableOf, debtOf, formatMoney, isCredit, moneyParts, type Account, type Capital, type LimitStatus, type Summary } from '@selfinance/shared';
 import { CatIcon } from '../lib/icons';
 import type { Lookups } from '../lib/lookups';
 import { Money } from './Money';
+import { useCurrencySymbol } from '../lib/budget';
 
 /* ---------- Свободные деньги + полоса капитала ---------- */
 
 export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: ReactNode }) {
   const p = moneyParts(capital.free, { forceKop: false });
+  const sym = useCurrencySymbol();
   const free = capital.accounts.filter((a) => !a.isFrozen && !isCredit(a) && a.balance > 0).sort((a, b) => b.balance - a.balance);
   const frozenTotal = capital.accounts.filter((a) => a.isFrozen && a.balance > 0).reduce((s, a) => s + a.balance, 0);
   const frozenCount = capital.accounts.filter((a) => a.isFrozen).length;
@@ -28,7 +30,7 @@ export function CapitalBlock({ capital, extra }: { capital: Capital; extra?: Rea
           <div className={'cap-free num' + (capital.free < 0 ? ' neg' : '')}>
             {p.sign}{p.rub}
             {p.kop && <span className="kop">{p.kop}</span>}
-            <span className="cur">₽</span>
+            <span className="cur">{sym}</span>
           </div>
           {credit > 0 && (
             <div className="cap-credit">в том числе <Money value={credit} round /> по кредиткам</div>
@@ -375,7 +377,7 @@ export function CategoryBars({ s, l, limits = [] }: { s: Summary; l: Lookups; li
 
 export function bankBadge(a: Account) {
   const name = a.bankName || a.name;
-  if (a.kind === 'cash') return '₽';
+  if (a.kind === 'cash') return currencySymbol(getCurrentCurrency());
   return name.slice(0, 1).toUpperCase();
 }
 

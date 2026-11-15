@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { BellRing, Ban, HandCoins, Pencil, ShoppingCart, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { addDays, amountToInput, parseAmount, todayISO, type Planned, type PlannedItem, type PlannedOverview } from '@selfinance/shared';
+import { addDays, amountToInput, parseAmount, todayISO, type Planned, type PlannedItem, type PlannedOverview, currencySymbol, getCurrentCurrency } from '@selfinance/shared';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
@@ -228,7 +228,7 @@ export function PlannedSheet({ plan, l, onClose, initialType = 'expense' }: { pl
 
         <label className="field">
           <span>Сумма</span>
-          <input className="input num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0 ₽" />
+          <input className="input num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={'0 ' + currencySymbol(getCurrentCurrency())} />
         </label>
 
         <div className="sheet-section">
