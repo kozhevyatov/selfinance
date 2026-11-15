@@ -5,6 +5,9 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в форма�
 const id = z.string().min(1).max(36);
 const optId = id.nullish();
 
+// объявлено до схем, которые его используют (регистрация, мастер настройки, бюджеты)
+export const currencySchema = z.enum(currencyCodes, { message: 'Неизвестная валюта' });
+
 export const registrationModes = ['open', 'invite', 'closed'] as const;
 export type RegistrationMode = (typeof registrationModes)[number];
 
@@ -78,8 +81,6 @@ export const updateMeSchema = z.object({
 });
 
 /* ---------- бюджеты ---------- */
-
-export const currencySchema = z.enum(currencyCodes, { message: 'Неизвестная валюта' });
 
 export const budgetCreateSchema = z.object({
   name: z.string().trim().min(1).max(100),
