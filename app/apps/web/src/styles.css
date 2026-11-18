@@ -273,6 +273,7 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 /* счета */
 .acc-group + .acc-group { margin-top: 16px }
 .acc-group h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 500 }
+.acc-group-sum { margin-left: auto; font-weight: 600; color: inherit }
 .acc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line) }
 .acc:last-child { border-bottom: 0 }
 .acc-name { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 14.5px; min-width: 0 }
@@ -301,11 +302,25 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px }
 .sheet-head h2 { margin: 0; font-size: 18px }
-.amount-input {
-  width: 100%; border: 0; outline: none; background: transparent; text-align: center;
-  font-size: 44px; font-weight: 700; letter-spacing: -.03em; padding: 14px 0 6px;
+/* Сумма: поле фиксированной высоты — длинные числа уменьшают шрифт внутри, окно не «прыгает» */
+.amount-box {
+  display: flex; align-items: center; height: 76px; margin: 2px 0 6px; padding: 0 14px;
+  border-radius: var(--radius-m); background: var(--surface-2); border: 1.5px solid var(--line);
+  transition: border-color .15s, box-shadow .15s; cursor: text;
 }
-.amount-preview { text-align: center; font-size: 13px; color: var(--muted); min-height: 20px; margin-bottom: 14px }
+.amount-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft) }
+.amount-box[data-type="income"] .amount-input { color: var(--income) }
+.amount-box[data-type="income"]:focus-within { border-color: var(--income); box-shadow: 0 0 0 4px var(--income-soft, var(--accent-soft)) }
+.amount-box.has-error { border-color: var(--expense) }
+.sheet .amount-box input.amount-input {
+  width: 100%; height: 100%; min-width: 0; border: 0; outline: none; background: transparent; text-align: center; padding: 0;
+  font-size: var(--amount-fs, 44px); line-height: 1; font-weight: 700; letter-spacing: -.03em; color: var(--ink);
+}
+.amount-input::placeholder { color: var(--muted); opacity: .55 }
+.amount-preview {
+  text-align: center; font-size: 13px; color: var(--muted); height: 20px; line-height: 20px; margin-bottom: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-bottom: 8px }
 .cat-cell {
   display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: var(--radius-m);

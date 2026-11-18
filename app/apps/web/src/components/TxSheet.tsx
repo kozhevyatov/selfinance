@@ -219,17 +219,19 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
           </div>
         )}
 
-        <input
-          ref={amountRef}
-          className="amount-input num"
-          inputMode="decimal"
-          placeholder={'0 ' + currencySymbol(getCurrentCurrency())}
-          value={amountStr}
-          onChange={(e) => setAmountStr(e.target.value)}
-          aria-label="Сумма"
-          autoComplete="off"
-          style={{ color: type === 'income' ? 'var(--income)' : type === 'expense' ? 'var(--ink)' : 'var(--ink)' } as CSSProperties}
-        />
+        <label className={'amount-box' + (fields.amount ? ' has-error' : '')} data-type={type}>
+          <input
+            ref={amountRef}
+            className="amount-input num"
+            inputMode="decimal"
+            placeholder={'0 ' + currencySymbol(getCurrentCurrency())}
+            value={amountStr}
+            onChange={(e) => setAmountStr(e.target.value)}
+            aria-label="Сумма"
+            autoComplete="off"
+            style={{ '--amount-fs': amountFontSize(amountStr) } as CSSProperties}
+          />
+        </label>
         <div className="amount-preview">
           {fields.amount ? (
             <span className="exp">{fields.amount}</span>
@@ -422,3 +424,9 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
 }
 
 const accLabel = (a: Account) => a.name + (a.isFrozen ? ' ❄' : '') + (a.kind === 'credit' ? ' · кредитка' : a.kind === 'loan' ? ' · кредит' : '');
+
+/** Размер шрифта суммы: длинные числа уменьшаются внутри поля фиксированной высоты, чтобы окно не меняло размер. */
+function amountFontSize(v: string) {
+  const n = v.length;
+  return n <= 8 ? '44px' : n <= 11 ? '36px' : n <= 15 ? '28px' : '22px';
+}

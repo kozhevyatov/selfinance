@@ -396,6 +396,8 @@ export function AccountsList({ accounts, onClick }: { accounts: Account[]; onCli
   const free = accounts.filter((a) => !a.isFrozen && !isCredit(a));
   const frozen = accounts.filter((a) => a.isFrozen && !isCredit(a));
   const credit = accounts.filter(isCredit);
+  const sum = (list: Account[]) => list.reduce((t, a) => t + a.balance, 0);
+  const total = (list: Account[]) => <Money value={sum(list)} className="acc-group-sum" />;
   const row = (a: Account) => {
     const cr = isCredit(a);
     const sub = cr ? creditSub(a) : [a.bankName, a.note].filter(Boolean).join(', ');
@@ -420,19 +422,19 @@ export function AccountsList({ accounts, onClick }: { accounts: Account[]; onCli
     <>
       {free.length > 0 && (
         <div className="acc-group">
-          {frozen.length > 0 && <h3>В обороте</h3>}
+          {frozen.length > 0 && <h3>В обороте{total(free)}</h3>}
           {free.map(row)}
         </div>
       )}
       {frozen.length > 0 && (
         <div className="acc-group">
-          <h3 className="frz"><Snowflake size={14} />Заморожено</h3>
+          <h3 className="frz"><Snowflake size={14} />Заморожено{total(frozen)}</h3>
           {frozen.map(row)}
         </div>
       )}
       {credit.length > 0 && (
         <div className="acc-group">
-          <h3 className="crd"><CreditCard size={14} />Кредиты</h3>
+          <h3 className="crd"><CreditCard size={14} />Кредиты{total(credit)}</h3>
           {credit.map(row)}
         </div>
       )}
