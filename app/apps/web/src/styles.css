@@ -304,8 +304,8 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .sheet-head h2 { margin: 0; font-size: 18px }
 /* Сумма: поле фиксированной высоты — длинные числа уменьшают шрифт внутри, окно не «прыгает» */
 .amount-box {
-  display: flex; align-items: center; height: 76px; margin: 2px 0 6px; padding: 0 14px;
-  border-radius: var(--radius-m); background: var(--surface-2); border: 1.5px solid var(--line);
+  display: flex; align-items: center; height: 76px; margin: 14px 0 6px; padding: 0 24px;
+  border-radius: 999px; background: var(--surface-2); border: 1.5px solid var(--line);
   transition: border-color .15s, box-shadow .15s; cursor: text;
 }
 .amount-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft) }
