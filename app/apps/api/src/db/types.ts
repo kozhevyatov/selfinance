@@ -9,6 +9,8 @@ export interface UsersTable {
   is_admin: number;
   is_blocked: number;
   timezone: string;
+  can_share?: number;
+  week_start?: number;
   created_at: string;
   updated_at: string;
 }
@@ -65,6 +67,8 @@ export interface BudgetInvitesTable {
   created_by: string;
   expires_at: string | null;
   used_by: string | null;
+  used_at?: string | null;
+  user_id?: string | null; // кого пригласили
   created_at: string;
 }
 

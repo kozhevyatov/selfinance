@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { CalendarClock, ChevronRight, LogOut, Repeat, Settings, Tag, Users, Wallet } from 'lucide-react';
-import { TopBar } from '../components/Layout';
+import { CalendarClock, ChevronRight, LogOut, Repeat, Settings, Shield, Tag, Users, Wallet } from 'lucide-react';
+import { TopBar, navItems } from '../components/Layout';
 import { UpdateInfo } from '../components/UpdateInfo';
 import { useAuth } from '../lib/auth';
 
@@ -9,8 +9,9 @@ const ITEMS = [
   { to: '/recurring', label: 'Регулярные платежи', hint: 'Напоминания о ежемесячных платежах', icon: Repeat },
   { to: '/planned', label: 'Планы', hint: 'Запланированные покупки и ожидаемые доходы', icon: CalendarClock },
   { to: '/categories', label: 'Категории', hint: 'Добавить, изменить, удалить', icon: Tag },
-  { to: '/budgets', label: 'Бюджеты', hint: 'Личный и семейные', icon: Users },
+  { to: '/budgets', label: 'Бюджеты', hint: 'Личный и семейные', icon: Users, share: true },
   { to: '/settings', label: 'Настройки', hint: 'Профиль, пароль, оформление', icon: Settings },
+  { to: '/admin', label: 'Админка', hint: 'Пользователи и регистрация', icon: Shield, admin: true },
 ];
 
 /** «Ещё» — разделы, которые не поместились в нижнюю панель на телефоне. */
@@ -21,7 +22,7 @@ export function MorePage() {
       <TopBar title="Ещё" />
       <section className="panel more-list">
         {user?.name && (
-          <Link to="/settings" className="more-user">
+          <Link to="/settings/profile" className="more-user">
             <span className="more-avatar">{user.name.slice(0, 1).toUpperCase()}</span>
             <span className="more-text">
               <b>{user.name}</b>
@@ -30,7 +31,7 @@ export function MorePage() {
             <ChevronRight size={18} className="muted" />
           </Link>
         )}
-        {ITEMS.map(({ to, label, hint, icon: I }) => (
+        {navItems(ITEMS, user).map(({ to, label, hint, icon: I }) => (
           <Link key={to} to={to} className="more-item">
             <span className="more-ico"><I size={19} strokeWidth={1.8} /></span>
             <span className="more-text">

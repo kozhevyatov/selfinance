@@ -10,12 +10,13 @@ import { LoginPage, RegisterPage } from './pages/AuthPages';
 import { HomePage } from './pages/HomePage';
 import { OperationsPage } from './pages/OperationsPage';
 import { SetupPage } from './pages/SetupPage';
-import { SoonPage } from './pages/SoonPage';
+import { AdminPage } from './pages/AdminPage';
+import { BudgetsPage } from './pages/BudgetsPage';
 import { StatsPage } from './pages/StatsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { RecurringPage } from './pages/RecurringPage';
 import { PlannedPage } from './pages/PlannedPage';
-import { SettingsPage } from './pages/SettingsPage';
+import { SettingsPage, SettingsSectionPage } from './pages/SettingsPage';
 import { MorePage } from './pages/MorePage';
 
 export function App() {
@@ -57,8 +58,10 @@ export function App() {
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="recurring" element={<RecurringPage />} />
           <Route path="planned" element={<PlannedPage />} />
-          <Route path="budgets" element={<SoonPage title="Бюджеты" />} />
+          <Route path="budgets" element={<BudgetsPage />} />
+          <Route path="admin" element={<AdminPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings/:section" element={<SettingsSectionPage />} />
           <Route path="more" element={<MorePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -66,3 +69,4 @@ export function App() {
     </BudgetProvider>
   );
 }
+

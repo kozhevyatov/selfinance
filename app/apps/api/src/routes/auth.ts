@@ -99,6 +99,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
     if (input.name !== undefined) patch.name = input.name;
     if (input.timezone !== undefined) patch.timezone = input.timezone;
+    if (input.weekStart !== undefined) patch.week_start = input.weekStart;
 
     let email = user.email;
     let phone = user.phone;

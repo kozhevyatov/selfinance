@@ -15,7 +15,11 @@ export interface User {
   phone: string | null;
   isAdmin: boolean;
   timezone: string;
+  canShare: boolean; // может создавать общие бюджеты (включает админ)
+  weekStart: WeekStart; // 1 — неделя с понедельника, 0 — с воскресенья
 }
+
+export type WeekStart = 0 | 1;
 
 export interface AuthResponse {
   accessToken: string;
@@ -31,6 +35,40 @@ export interface Budget {
   type: 'personal' | 'shared';
   currency: string;
   role: BudgetRole;
+}
+
+export interface BudgetMember {
+  userId: string;
+  name: string;
+  role: BudgetRole;
+  joinedAt: string;
+  active: boolean; // false — администратор снял разрешение «Общие бюджеты», бюджет ему сейчас не виден
+}
+
+/** Приглашение в общий бюджет, которое ждёт ответа (видит владелец бюджета). */
+export interface BudgetInvite {
+  id: string;
+  userId: string;
+  userName: string;
+  role: 'member' | 'viewer';
+  createdAt: string;
+}
+
+/** Приглашение, адресованное мне. */
+export interface IncomingInvite {
+  id: string;
+  budgetId: string;
+  budgetName: string;
+  role: 'member' | 'viewer';
+  invitedBy: string;
+  createdAt: string;
+}
+
+/** Кого можно пригласить: пользователи с разрешением «Общие бюджеты», ещё не в бюджете. */
+export interface InviteCandidate {
+  userId: string;
+  name: string;
+  login: string | null; // email или телефон — чтобы различить тёзок
 }
 
 export interface Account {
@@ -76,6 +114,9 @@ export interface Transaction {
   createdAt: string;
   recurringId: string | null;
   plannedId: string | null;
+  /** перевод между бюджетами: вторая половина операции лежит в этом бюджете */
+  linkedBudget: { id: string; name: string } | null;
+  transferGroupId: string | null;
 }
 
 export interface TxPage {
@@ -95,7 +136,9 @@ export interface Summary {
   income: number;
   expense: number;
   net: number;
-  adjustments: number;
+  adjustments: number; // корректировки (без переводов между бюджетами)
+  crossIn: number; // получено из других бюджетов
+  crossOut: number; // передано в другие бюджеты, положительное число
   prev: { from: string; to: string; income: number; expense: number; net: number };
   /** Для текущего периода: прошлый период за то же число дней. */
   prevToDate: { income: number; expense: number; net: number } | null;
@@ -212,6 +255,7 @@ export interface AdminUser {
   phone: string | null;
   isAdmin: boolean;
   isBlocked: boolean;
+  canShare: boolean;
   createdAt: string;
 }
 

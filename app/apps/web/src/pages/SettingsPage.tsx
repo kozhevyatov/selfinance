@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Copy, Download, LogOut, Monitor, Moon, Plus, Share, Sun, Trash2, X } from 'lucide-react';
-import { formatPhone, type AdminUser, type Invite, type RegistrationMode, type User } from '@selfinance/shared';
+import { Link, Navigate, useParams } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Coins, Download, KeyRound, LogOut, Monitor, Moon, Palette, Share, Shield, Smartphone, Sun, User as UserIcon, X } from 'lucide-react';
+import { formatPhone, type User, type WeekStart } from '@selfinance/shared';
 import { TopBar } from '../components/Layout';
-import { ApiError, del, get, patch, post } from '../lib/api';
+import { ApiError, del, get, patch } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { setTheme, syncThemeColor } from '../lib/theme';
 import { canPromptInstall, isIOS, isStandalone, onInstallChange, promptInstall } from '../lib/pwa';
@@ -13,20 +14,72 @@ import { CurrencySelect } from '../components/CurrencySelect';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
+type SectionKey = 'profile' | 'password' | 'currency' | 'theme' | 'devices' | 'install';
+
+const SECTIONS: { key: SectionKey; label: string; hint: string; icon: typeof UserIcon }[] = [
+  { key: 'profile', label: 'Профиль', hint: 'Имя, email, телефон, часовой пояс, начало недели', icon: UserIcon },
+  { key: 'password', label: 'Пароль', hint: 'Сменить пароль входа', icon: KeyRound },
+  { key: 'currency', label: 'Валюта', hint: 'Валюта текущего бюджета', icon: Coins },
+  { key: 'theme', label: 'Оформление', hint: 'Светлая, тёмная или как в системе', icon: Palette },
+  { key: 'devices', label: 'Устройства', hint: 'Где выполнен вход, завершить сеансы', icon: Smartphone },
+  { key: 'install', label: 'Приложение на телефоне', hint: 'Установить Selfinance как приложение', icon: Download },
+];
+
+/** Настройки — список разделов; каждый открывается отдельной страницей /settings/<раздел>. */
 export function SettingsPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const items = SECTIONS.filter((s) => s.key !== 'install' || !isStandalone());
   return (
     <>
       <TopBar title="Настройки" />
-      <div className="settings">
-        <InstallSection />
-        <ProfileSection />
-        <CurrencySection />
-        <PasswordSection />
-        <ThemeSection />
-        <SessionsSection />
-        {user?.isAdmin && <AdminSection />}
-      </div>
+      <section className="panel more-list" style={{ maxWidth: 720 }}>
+        {items.map(({ key, label, hint, icon: I }) => (
+          <Link key={key} to={`/settings/${key}`} className="more-item">
+            <span className="more-ico"><I size={19} strokeWidth={1.8} /></span>
+            <span className="more-text">
+              <b>{label}</b>
+              <small className="muted">{hint}</small>
+            </span>
+            <ChevronRight size={18} className="muted" />
+          </Link>
+        ))}
+        {user?.isAdmin && (
+          <Link to="/admin" className="more-item">
+            <span className="more-ico"><Shield size={19} strokeWidth={1.8} /></span>
+            <span className="more-text">
+              <b>Админка</b>
+              <small className="muted">Пользователи, регистрация, приглашения</small>
+            </span>
+            <ChevronRight size={18} className="muted" />
+          </Link>
+        )}
+        <button type="button" className="more-item more-exit" onClick={() => signOut()}>
+          <span className="more-ico"><LogOut size={19} strokeWidth={1.8} /></span>
+          <span className="more-text"><b>Выйти</b></span>
+        </button>
+      </section>
+    </>
+  );
+}
+
+/** Отдельная страница раздела настроек. */
+export function SettingsSectionPage() {
+  const { section } = useParams();
+  const item = SECTIONS.find((s) => s.key === section);
+  if (!item) return <Navigate to="/settings" replace />;
+  const body = {
+    profile: <ProfileSection />,
+    password: <PasswordSection />,
+    currency: <CurrencySection />,
+    theme: <ThemeSection />,
+    devices: <SessionsSection />,
+    install: <InstallSection />,
+  }[item.key];
+  return (
+    <>
+      <TopBar title={item.label} />
+      <Link to="/settings" className="back-link"><ChevronLeft size={16} /> Настройки</Link>
+      <div className="settings">{body}</div>
     </>
   );
 }
@@ -34,7 +87,9 @@ export function SettingsPage() {
 function InstallSection() {
   const [, force] = useState(0);
   useEffect(() => onInstallChange(() => force((n) => n + 1)), []);
-  if (isStandalone()) return null;
+  if (isStandalone()) {
+    return <section className="panel"><p style={{ margin: 0 }}>Selfinance уже установлен как приложение.</p></section>;
+  }
 
   return (
     <section className="panel">
@@ -63,6 +118,7 @@ function ProfileSection() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState(user?.phone ? formatPhone(user.phone) : '');
   const [timezone, setTimezone] = useState(user?.timezone ?? 'Europe/Moscow');
+  const [weekStart, setWeekStart] = useState<WeekStart>(user?.weekStart ?? 1);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -80,7 +136,7 @@ function ProfileSection() {
     setError(null);
     setFields({});
     try {
-      const u = await patch<User>('/auth/me', { name, email: email || null, phone: phone || null, timezone });
+      const u = await patch<User>('/auth/me', { name, email: email || null, phone: phone || null, timezone, weekStart });
       setUser(u);
       setMsg('Сохранено');
     } catch (err) {
@@ -105,6 +161,12 @@ function ProfileSection() {
           <select className="select" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
             {zones.map((z) => <option key={z} value={z}>{z}</option>)}
           </select>
+        </Field>
+        <Field label="Первый день недели">
+          <div className="segmented">
+            <button type="button" aria-pressed={weekStart === 1} onClick={() => setWeekStart(1)}>Понедельник</button>
+            <button type="button" aria-pressed={weekStart === 0} onClick={() => setWeekStart(0)}>Воскресенье</button>
+          </div>
         </Field>
         {error && <div className="form-error">{error}</div>}
         {msg && <div className="ok-note">{msg}</div>}
@@ -253,148 +315,5 @@ function SessionsSection() {
       ))}
       <button className="btn" style={{ marginTop: 14 }} onClick={() => signOut()}><LogOut size={16} /> Выйти</button>
     </section>
-  );
-}
-
-/* ---------- Администрирование ---------- */
-
-function AdminSection() {
-  const qc = useQueryClient();
-  const { user: me } = useAuth();
-  const settings = useQuery({ queryKey: ['admin-settings'], queryFn: () => get<{ registration: RegistrationMode; version: string; dbType: string | null }>('/admin/settings') });
-  const users = useQuery({ queryKey: ['admin-users'], queryFn: () => get<AdminUser[]>('/admin/users') });
-  const invites = useQuery({ queryKey: ['admin-invites'], queryFn: () => get<Invite[]>('/admin/invites') });
-  const [adding, setAdding] = useState(false);
-
-  const setReg = useMutation({
-    mutationFn: (registration: RegistrationMode) => patch('/admin/settings', { registration }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-settings'] });
-      qc.invalidateQueries({ queryKey: ['meta'] });
-    },
-  });
-  const updUser = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => patch(`/admin/users/${id}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
-    onError: (e) => alert(e instanceof ApiError ? e.message : 'Ошибка'),
-  });
-  const newInvite = useMutation({ mutationFn: () => post<Invite>('/admin/invites', { days: 7 }), onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-invites'] }) });
-  const delInvite = useMutation({ mutationFn: (id: string) => del(`/admin/invites/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-invites'] }) });
-
-  const resetPassword = (u: AdminUser) => {
-    const p = prompt(`Новый пароль для «${u.name}» (минимум 6 символов)`);
-    if (p && p.length >= 6) updUser.mutate({ id: u.id, data: { password: p } });
-  };
-  const inviteLink = (code: string) => `${location.origin}/register?invite=${code}`;
-  const activeInvites = (invites.data ?? []).filter((i) => !i.usedBy && (!i.expiresAt || i.expiresAt > new Date().toISOString()));
-
-  return (
-    <>
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Регистрация</h2>
-          {settings.data && <span className="muted" style={{ fontSize: 13 }}>v{settings.data.version}, {settings.data.dbType === 'mysql' ? 'MySQL/MariaDB' : 'SQLite'}</span>}
-        </div>
-        <div className="segmented">
-          {([['closed', 'Закрытая'], ['invite', 'По приглашениям'], ['open', 'Открытая']] as const).map(([v, t]) => (
-            <button key={v} type="button" aria-pressed={settings.data?.registration === v} onClick={() => setReg.mutate(v)}>{t}</button>
-          ))}
-        </div>
-
-        {settings.data?.registration === 'invite' && (
-          <div style={{ marginTop: 18 }}>
-            <div className="panel-head" style={{ marginBottom: 8 }}>
-              <h2 style={{ fontSize: 15 }}>Приглашения</h2>
-              <button className="link" onClick={() => newInvite.mutate()}><Plus size={14} style={{ verticalAlign: -2 }} /> Создать ссылку</button>
-            </div>
-            {activeInvites.length ? activeInvites.map((i) => (
-              <div className="acc" key={i.id}>
-                <div className="acc-name" style={{ minWidth: 0 }}>
-                  <span style={{ minWidth: 0 }}>
-                    <span className="num" style={{ fontSize: 13, wordBreak: 'break-all' }}>{inviteLink(i.code)}</span>
-                    <small>до {i.expiresAt ? fmtDate(i.expiresAt) : '—'}</small>
-                  </span>
-                </div>
-                <span style={{ display: 'flex', gap: 6 }}>
-                  <button className="icon-btn" aria-label="Скопировать" onClick={() => navigator.clipboard?.writeText(inviteLink(i.code))}><Copy size={15} /></button>
-                  <button className="icon-btn" aria-label="Удалить" onClick={() => delInvite.mutate(i.id)}><Trash2 size={15} /></button>
-                </span>
-              </div>
-            )) : <p className="hint" style={{ margin: 0 }}>Активных приглашений нет. Ссылка действует 7 дней и подходит одному человеку.</p>}
-          </div>
-        )}
-      </section>
-
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Пользователи</h2>
-          <button className="link" onClick={() => setAdding(true)}><Plus size={14} style={{ verticalAlign: -2 }} /> Добавить</button>
-        </div>
-        {(users.data ?? []).map((u) => (
-          <div className="acc user-row" key={u.id} style={u.isBlocked ? { opacity: 0.55 } : undefined}>
-            <div className="acc-name">
-              <span>
-                {u.name}
-                {u.isAdmin && <span className="badge">админ</span>}
-                {u.isBlocked && <span className="badge bad">заблокирован</span>}
-                <small>{[u.email, u.phone && formatPhone(u.phone)].filter(Boolean).join(', ')}</small>
-              </span>
-            </div>
-            {u.id !== me?.id && (
-              <div className="chips">
-                <button className="chip" onClick={() => resetPassword(u)}>Пароль</button>
-                <button className="chip" onClick={() => updUser.mutate({ id: u.id, data: { isAdmin: !u.isAdmin } })}>{u.isAdmin ? 'Снять админа' : 'Сделать админом'}</button>
-                <button className="chip" onClick={() => updUser.mutate({ id: u.id, data: { isBlocked: !u.isBlocked } })}>{u.isBlocked ? 'Разблокировать' : 'Заблокировать'}</button>
-              </div>
-            )}
-          </div>
-        ))}
-        <p className="hint" style={{ marginTop: 14, marginBottom: 0 }}>Администратор управляет аккаунтами, но не видит чужие финансы.</p>
-      </section>
-
-      {adding && <AddUserSheet onClose={() => setAdding(false)} />}
-    </>
-  );
-}
-
-function AddUserSheet({ onClose }: { onClose: () => void }) {
-  const qc = useQueryClient();
-  const [name, setName] = useState('');
-  const [login, setLogin] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [fields, setFields] = useState<Record<string, string>>({});
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setFields({});
-    try {
-      await post('/admin/users', { name, login, password });
-      await qc.invalidateQueries({ queryKey: ['admin-users'] });
-      onClose();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-        setFields(err.fields);
-      }
-    }
-  }
-
-  return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <form className="sheet" onSubmit={submit}>
-        <div className="sheet-head">
-          <h2>Новый пользователь</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть"><X size={18} /></button>
-        </div>
-        <Field label="Имя" error={fields.name}><input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></Field>
-        <Field label="Email или телефон" error={fields.login}><input className="input" value={login} onChange={(e) => setLogin(e.target.value)} required /></Field>
-        <Field label="Пароль" error={fields.password}><input className="input" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required /></Field>
-        <p className="hint">Передайте пароль пользователю — он сможет сменить его в настройках.</p>
-        {error && <div className="form-error">{error}</div>}
-        <div className="sheet-actions"><button className="btn btn-primary">Создать</button></div>
-      </form>
-    </div>
   );
 }

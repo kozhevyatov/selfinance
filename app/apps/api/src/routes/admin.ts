@@ -24,6 +24,7 @@ const toAdminUser = (u: UsersTable): AdminUser => ({
   phone: u.phone,
   isAdmin: !!u.is_admin,
   isBlocked: !!u.is_blocked,
+  canShare: !!u.can_share,
   createdAt: u.created_at,
 });
 
@@ -86,6 +87,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       password_hash: await hashPassword(input.password),
       is_admin: input.isAdmin ? 1 : 0,
       is_blocked: 0,
+      can_share: input.canShare ? 1 : 0,
       timezone: 'Europe/Moscow',
       created_at: now,
       updated_at: now,
@@ -107,6 +109,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     const patch: Partial<UsersTable> = { updated_at: nowIso() };
     if (input.isBlocked !== undefined) patch.is_blocked = input.isBlocked ? 1 : 0;
     if (input.isAdmin !== undefined) patch.is_admin = input.isAdmin ? 1 : 0;
+    if (input.canShare !== undefined) patch.can_share = input.canShare ? 1 : 0;
     if (input.password) patch.password_hash = await hashPassword(input.password);
     await db.updateTable('users').set(patch).where('id', '=', user.id).execute();
     // при блокировке и смене пароля — завершаем все сессии пользователя

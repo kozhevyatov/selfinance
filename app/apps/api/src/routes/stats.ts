@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { sql } from 'kysely';
+import { sql, type SelectQueryBuilder } from 'kysely';
 import {
   addDays,
   dynamicsQuerySchema,
@@ -18,6 +18,7 @@ import {
 } from '@selfinance/shared';
 import { getDb } from '../context';
 import type { DB } from '../db';
+import type { Database } from '../db/types';
 import { requireUser } from '../lib/auth';
 import { badRequest, num } from '../lib/util';
 import { listAccounts } from '../services/accounts';
@@ -37,20 +38,53 @@ async function categorySet(db: DB, budgetId: string, categoryId?: string): Promi
   return rows.map((r) => r.id);
 }
 
-async function totals(db: DB, budgetId: string, from: string, to: string, cats?: string[]) {
-  let q = db
-    .selectFrom('transactions')
-    .select(['type', sql<number>`sum(amount)`.as('total')])
-    .where('budget_id', '=', budgetId)
-    .where('deleted_at', 'is', null)
-    .where('date', '>=', from)
-    .where('date', '<=', to);
-  if (cats) q = q.where('category_id', 'in', cats);
-  const rows = await q.groupBy('type').execute();
+/** Фильтр статистики: категории (с подкатегориями), счёт, кто внёс операцию. */
+interface F {
+  cats?: string[];
+  accountId?: string;
+  userId?: string;
+}
+
+function applyF<O>(q: SelectQueryBuilder<Database, 'transactions', O>, f: F): SelectQueryBuilder<Database, 'transactions', O> {
+  if (f.cats) q = q.where('category_id', 'in', f.cats);
+  if (f.accountId) q = q.where('account_id', '=', f.accountId);
+  if (f.userId) q = q.where('created_by', '=', f.userId);
+  return q;
+}
+
+async function makeFilter(db: DB, budgetId: string, q: { categoryId?: string; accountId?: string; userId?: string }): Promise<F> {
+  return { cats: await categorySet(db, budgetId, q.categoryId), accountId: q.accountId, userId: q.userId };
+}
+
+const hasFilter = (f: F) => !!(f.cats || f.accountId || f.userId);
+
+async function totals(db: DB, budgetId: string, from: string, to: string, f: F) {
+  const base = () =>
+    db
+      .selectFrom('transactions')
+      .where('budget_id', '=', budgetId)
+      .where('deleted_at', 'is', null)
+      .where('date', '>=', from)
+      .where('date', '<=', to);
+  const rows = await applyF(base().select(['type', sql<number>`sum(amount)`.as('total')]).where('transfer_group_id', 'is', null), f)
+    .groupBy('type')
+    .execute();
+  // переводы между бюджетами — отдельно: «получено из других бюджетов» / «передано в другие»
+  const cross = f.cats
+    ? undefined
+    : await applyF(
+        base()
+          .select([
+            sql<number>`sum(case when amount > 0 then amount else 0 end)`.as('pos'),
+            sql<number>`sum(case when amount < 0 then -amount else 0 end)`.as('neg'),
+          ])
+          .where('transfer_group_id', 'is not', null),
+        f,
+      ).executeTakeFirst();
   const get = (t: string) => num(rows.find((r) => r.type === t)?.total);
   const income = get('income');
   const expense = get('expense');
-  return { income, expense, net: income - expense, adjustments: get('adjustment') };
+  return { income, expense, net: income - expense, adjustments: get('adjustment'), crossIn: num(cross?.pos), crossOut: num(cross?.neg) };
 }
 
 /** Целый календарный месяц? */
@@ -66,8 +100,8 @@ function previousRange(from: string, to: string) {
   return { from: addDays(from, -len), to: addDays(from, -1) };
 }
 
-async function byCategory(db: DB, budgetId: string, from: string, to: string, type: 'income' | 'expense', cats?: string[]): Promise<CategoryStat[]> {
-  let q = db
+async function byCategory(db: DB, budgetId: string, from: string, to: string, type: 'income' | 'expense', f: F): Promise<CategoryStat[]> {
+  const q = db
     .selectFrom('transactions')
     .select(['category_id', sql<number>`sum(amount)`.as('total')])
     .where('budget_id', '=', budgetId)
@@ -75,8 +109,7 @@ async function byCategory(db: DB, budgetId: string, from: string, to: string, ty
     .where('type', '=', type)
     .where('date', '>=', from)
     .where('date', '<=', to);
-  if (cats) q = q.where('category_id', 'in', cats);
-  const rows = await q.groupBy('category_id').execute();
+  const rows = await applyF(q, f).groupBy('category_id').execute();
   const allCats = await db.selectFrom('categories').select(['id', 'parent_id']).where('budget_id', '=', budgetId).execute();
   const parentOf = new Map(allCats.map((c) => [c.id, c.parent_id]));
 
@@ -102,15 +135,16 @@ export default async function statsRoutes(app: FastifyInstance) {
     const user = await requireUser(req);
     const { budgetId } = req.params;
     await requireBudget(db, budgetId, user.id);
-    const { from, to, categoryId } = rangeQuerySchema.parse(req.query);
-    const cats = await categorySet(db, budgetId, categoryId);
+    const query = rangeQuerySchema.parse(req.query);
+    const { from, to } = query;
+    const f = await makeFilter(db, budgetId, query);
     if (from > to) throw badRequest('Начало периода позже конца');
     if (daysBetween(from, to) > 3700) throw badRequest('Слишком длинный период');
 
     const today = todayISO(user.timezone);
-    const cur = await totals(db, budgetId, from, to, cats);
+    const cur = await totals(db, budgetId, from, to, f);
     const prevRange = previousRange(from, to);
-    const prev = await totals(db, budgetId, prevRange.from, prevRange.to, cats);
+    const prev = await totals(db, budgetId, prevRange.from, prevRange.to, f);
 
     const daysTotal = daysBetween(from, to);
     const isCurrent = today >= from && today <= to;
@@ -120,13 +154,13 @@ export default async function statsRoutes(app: FastifyInstance) {
     let prevToDate: Summary['prevToDate'] = null;
     if (isCurrent) {
       const end = addDays(prevRange.from, daysElapsed - 1);
-      const t = await totals(db, budgetId, prevRange.from, end < prevRange.to ? end : prevRange.to, cats);
+      const t = await totals(db, budgetId, prevRange.from, end < prevRange.to ? end : prevRange.to, f);
       prevToDate = { income: t.income, expense: t.expense, net: t.net };
     }
 
     const avgPerDay = daysElapsed ? Math.round(cur.expense / daysElapsed) : 0;
 
-    let dailyQ = db
+    const dailyQ = db
       .selectFrom('transactions')
       .select(['date', 'type', sql<number>`sum(amount)`.as('total')])
       .where('budget_id', '=', budgetId)
@@ -134,8 +168,7 @@ export default async function statsRoutes(app: FastifyInstance) {
       .where('type', 'in', ['income', 'expense'])
       .where('date', '>=', from)
       .where('date', '<=', to);
-    if (cats) dailyQ = dailyQ.where('category_id', 'in', cats);
-    const dailyRows = await dailyQ.groupBy(['date', 'type']).execute();
+    const dailyRows = await applyF(dailyQ, f).groupBy(['date', 'type']).execute();
     const dailyMap = new Map<string, { date: string; expense: number; income: number }>();
     if (daysTotal <= 400) {
       for (let d = from; d <= to; d = addDays(d, 1)) dailyMap.set(d, { date: d, expense: 0, income: 0 });
@@ -158,10 +191,10 @@ export default async function statsRoutes(app: FastifyInstance) {
       avgPerDay,
       avgPerWeek: avgPerDay * 7,
       forecastExpense: isCurrent ? avgPerDay * daysTotal : null,
-      expectedIncome: await expectedIncome(db, budgetId, from, to, today, cur.income, cats),
+      expectedIncome: await expectedIncome(db, budgetId, from, to, today, cur.income, f),
       daily: [...dailyMap.values()].sort((a, b) => (a.date < b.date ? -1 : 1)),
-      expenseByCategory: await byCategory(db, budgetId, from, to, 'expense', cats),
-      incomeByCategory: await byCategory(db, budgetId, from, to, 'income', cats),
+      expenseByCategory: await byCategory(db, budgetId, from, to, 'expense', f),
+      incomeByCategory: await byCategory(db, budgetId, from, to, 'income', f),
     };
     return summary;
   });
@@ -180,8 +213,9 @@ export default async function statsRoutes(app: FastifyInstance) {
     const user = await requireUser(req);
     const { budgetId } = req.params;
     await requireBudget(db, budgetId, user.id);
-    const { to, months, categoryId } = dynamicsQuerySchema.parse(req.query);
-    const cats = await categorySet(db, budgetId, categoryId);
+    const query = dynamicsQuerySchema.parse(req.query);
+    const { to, months } = query;
+    const f = await makeFilter(db, budgetId, query);
     const firstMonth = shiftMonth(to, -(months - 1));
     const from = monthRange(firstMonth).from;
     const end = monthRange(to).to;
@@ -206,18 +240,18 @@ export default async function statsRoutes(app: FastifyInstance) {
       .groupBy([sql`substr(date, 1, 7)`, 'type'])
       .execute();
 
-    // с фильтром по категории приход/расход считаем только по ней, капитал — по всему бюджету
+    // с фильтром приход/расход считаем только по нему, капитал — по всему бюджету
     let catRows = rows;
-    if (cats) {
-      catRows = await db
+    if (hasFilter(f)) {
+      const q = db
         .selectFrom('transactions')
         .select([sql<string>`substr(date, 1, 7)`.as('month'), 'type', sql<number>`sum(amount)`.as('total')])
         .where('budget_id', '=', budgetId)
         .where('deleted_at', 'is', null)
         .where('date', '>=', from)
         .where('date', '<=', end)
-        .where('type', 'in', ['income', 'expense'])
-        .where('category_id', 'in', cats)
+        .where('type', 'in', ['income', 'expense']);
+      catRows = await applyF(q, f)
         .groupBy([sql`substr(date, 1, 7)`, 'type'])
         .execute();
     }

@@ -76,6 +76,7 @@ export const updateMeSchema = z.object({
   email: z.string().trim().max(255).nullish(),
   phone: z.string().trim().max(32).nullish(),
   timezone: z.string().max(64).optional(),
+  weekStart: z.union([z.literal(0), z.literal(1)]).optional(),
   currentPassword: z.string().optional(),
   newPassword: passwordSchema.optional(),
 });
@@ -90,6 +91,29 @@ export const budgetCreateSchema = z.object({
 export const budgetUpdateSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
   currency: currencySchema.optional(),
+});
+
+export const budgetRoles = ['owner', 'member', 'viewer'] as const;
+export const memberUpdateSchema = z.object({ role: z.enum(budgetRoles) });
+export const budgetInviteCreateSchema = z.object({
+  userId: id,
+  role: z.enum(['member', 'viewer']).default('member'),
+});
+
+/** Перевод между бюджетами: уходит со счёта одного бюджета, приходит на счёт другого. */
+export const crossTransferSchema = z.object({
+  fromBudgetId: id,
+  fromAccountId: id,
+  toBudgetId: id,
+  toAccountId: id,
+  amount: z.number().int().positive('Сумма должна быть больше нуля'),
+  date: isoDate,
+  comment: z.string().max(500).nullish(),
+});
+export const crossTransferUpdateSchema = z.object({
+  amount: z.number().int().positive('Сумма должна быть больше нуля').optional(),
+  date: isoDate.optional(),
+  comment: z.string().max(500).nullish(),
 });
 
 /* ---------- счета ---------- */
@@ -163,12 +187,15 @@ export const txListQuerySchema = z.object({
   type: z.enum(txTypes).optional(),
   account: id.optional(),
   category: id.optional(),
+  user: id.optional(),
   q: z.string().max(100).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.string().max(80).optional(),
 });
 
-export const rangeQuerySchema = z.object({ from: isoDate, to: isoDate, categoryId: id.optional() });
+/** Фильтры статистики: категория (с подкатегориями), счёт, участник бюджета. */
+const statsFilter = { categoryId: id.optional(), accountId: id.optional(), userId: id.optional() };
+export const rangeQuerySchema = z.object({ from: isoDate, to: isoDate, ...statsFilter });
 
 /* ---------- регулярные платежи ---------- */
 
@@ -228,10 +255,12 @@ export const adminUserCreateSchema = z.object({
   login: z.string().trim().min(3, 'Укажите email или телефон'),
   password: passwordSchema,
   isAdmin: z.boolean().optional(),
+  canShare: z.boolean().optional(),
 });
 export const adminUserUpdateSchema = z.object({
   isBlocked: z.boolean().optional(),
   isAdmin: z.boolean().optional(),
+  canShare: z.boolean().optional(),
   password: passwordSchema.optional(),
 });
 export const inviteCreateSchema = z.object({ days: z.number().int().min(1).max(90).default(7) });
@@ -239,5 +268,5 @@ export const inviteCreateSchema = z.object({ days: z.number().int().min(1).max(9
 export const dynamicsQuerySchema = z.object({
   to: z.string().regex(/^\d{4}-\d{2}$/),
   months: z.coerce.number().int().min(1).max(60).default(12),
-  categoryId: id.optional(),
+  ...statsFilter,
 });

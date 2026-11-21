@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Account, Capital, Category, DynamicsPoint, Limits, Planned, PlannedOverview, Recurring, Summary, Transaction, TxCreateInput, TxPage, UpcomingPayment, VersionInfo } from '@selfinance/shared';
+import type { Account, Budget, BudgetInvite, BudgetMember, Capital, Category, IncomingInvite, InviteCandidate, DynamicsPoint, Limits, Planned, PlannedOverview, Recurring, Summary, Transaction, TxCreateInput, TxPage, UpcomingPayment, VersionInfo } from '@selfinance/shared';
 import { api, del, get, patch, post } from './api';
 import { useBudget } from './budget';
 
@@ -27,11 +27,20 @@ export function useCapital() {
   return useQuery({ queryKey: ['capital', budgetId], queryFn: () => get<Capital>(`/budgets/${budgetId}/stats/capital`) });
 }
 
-export function useSummary(from: string, to: string, categoryId?: string | null, enabled = true) {
+/** Фильтр статистики: категория (с подкатегориями), счёт, участник. Пустые поля — без фильтра. */
+export interface StatsFilter {
+  categoryId?: string | null;
+  accountId?: string | null;
+  userId?: string | null;
+}
+
+const filterKey = (f: StatsFilter = {}) => [f.categoryId || null, f.accountId || null, f.userId || null];
+
+export function useSummary(from: string, to: string, filter: StatsFilter = {}, enabled = true) {
   const { budgetId } = useBudget();
   return useQuery({
-    queryKey: ['summary', budgetId, from, to, categoryId ?? null],
-    queryFn: () => get<Summary>(`/budgets/${budgetId}/stats/summary`, { from, to, categoryId }),
+    queryKey: ['summary', budgetId, from, to, ...filterKey(filter)],
+    queryFn: () => get<Summary>(`/budgets/${budgetId}/stats/summary`, { from, to, categoryId: filter.categoryId, accountId: filter.accountId, userId: filter.userId }),
     enabled,
     placeholderData: (prev) => prev,
   });
@@ -43,6 +52,7 @@ export interface TxFilters {
   type?: string;
   account?: string;
   category?: string;
+  user?: string;
   q?: string;
 }
 
@@ -132,11 +142,11 @@ export function useReconcile() {
 
 /* ---------- статистика ---------- */
 
-export function useDynamics(to: string, months = 12, categoryId?: string | null) {
+export function useDynamics(to: string, months = 12, filter: StatsFilter = {}) {
   const { budgetId } = useBudget();
   return useQuery({
-    queryKey: ['dynamics', budgetId, to, months, categoryId ?? null],
-    queryFn: () => get<DynamicsPoint[]>(`/budgets/${budgetId}/stats/dynamics`, { to, months, categoryId }),
+    queryKey: ['dynamics', budgetId, to, months, ...filterKey(filter)],
+    queryFn: () => get<DynamicsPoint[]>(`/budgets/${budgetId}/stats/dynamics`, { to, months, categoryId: filter.categoryId, accountId: filter.accountId, userId: filter.userId }),
     placeholderData: (prev) => prev,
   });
 }
@@ -320,4 +330,115 @@ export function useCheckVersion() {
     mutationFn: () => get<VersionInfo>('/version', { force: 1 }),
     onSuccess: (info) => qc.setQueryData(['version'], info),
   });
+}
+
+/* ---------- бюджеты, участники, переводы между бюджетами ---------- */
+
+/** После перевода между бюджетами меняются деньги сразу в двух бюджетах — обновляем все. */
+function useInvalidateAllMoney() {
+  const qc = useQueryClient();
+  return () => {
+    for (const k of ['transactions', 'summary', 'capital', 'accounts', 'accounts-all', 'dynamics', 'limits', 'planned', 'budget-accounts']) qc.invalidateQueries({ queryKey: [k] });
+  };
+}
+
+export function useMembers(budgetId: string, enabled = true) {
+  return useQuery({ queryKey: ['members', budgetId], queryFn: () => get<BudgetMember[]>(`/budgets/${budgetId}/members`), enabled: enabled && !!budgetId });
+}
+
+/** Участники текущего бюджета (для подписи «кто внёс» и фильтров). В личном бюджете — пусто. */
+export function useCurrentMembers() {
+  const { budget } = useBudget();
+  return useMembers(budget?.id ?? '', budget?.type === 'shared');
+}
+
+export function useBudgetInvites(budgetId: string, enabled = true) {
+  return useQuery({ queryKey: ['budget-invites', budgetId], queryFn: () => get<BudgetInvite[]>(`/budgets/${budgetId}/invites`), enabled: enabled && !!budgetId });
+}
+
+export function useCandidates(budgetId: string, enabled = true) {
+  return useQuery({ queryKey: ['budget-candidates', budgetId], queryFn: () => get<InviteCandidate[]>(`/budgets/${budgetId}/candidates`), enabled: enabled && !!budgetId });
+}
+
+/** Приглашения в общие бюджеты, адресованные мне. */
+export function useIncomingInvites(enabled = true) {
+  return useQuery({ queryKey: ['incoming-invites'], queryFn: () => get<IncomingInvite[]>('/budget-invites'), enabled, refetchInterval: 5 * 60_000 });
+}
+
+export function useAnswerInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, accept }: { id: string; accept: boolean }) => post<{ budgetId?: string }>(`/budget-invites/${id}/${accept ? 'accept' : 'decline'}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['incoming-invites'] });
+      qc.invalidateQueries({ queryKey: ['budgets'] });
+    },
+  });
+}
+
+/** Счета любого бюджета пользователя — для перевода между бюджетами. */
+export function useBudgetAccounts(budgetId: string) {
+  return useQuery({ queryKey: ['budget-accounts', budgetId], queryFn: () => get<Account[]>(`/budgets/${budgetId}/accounts`), enabled: !!budgetId });
+}
+
+export function useBudgetActions() {
+  const qc = useQueryClient();
+  const refresh = (budgetId?: string) => {
+    qc.invalidateQueries({ queryKey: ['budgets'] });
+    if (budgetId) {
+      qc.invalidateQueries({ queryKey: ['members', budgetId] });
+      qc.invalidateQueries({ queryKey: ['budget-invites', budgetId] });
+      qc.invalidateQueries({ queryKey: ['budget-candidates', budgetId] });
+    }
+  };
+  return {
+    create: useMutation({ mutationFn: (data: { name: string; currency?: string }) => post<Budget>('/budgets', data), onSuccess: () => refresh() }),
+    rename: useMutation({ mutationFn: ({ id, name }: { id: string; name: string }) => patch(`/budgets/${id}`, { name }), onSuccess: () => refresh() }),
+    remove: useMutation({ mutationFn: (id: string) => del(`/budgets/${id}`), onSuccess: () => refresh() }),
+    setRole: useMutation({
+      mutationFn: ({ budgetId, userId, role }: { budgetId: string; userId: string; role: BudgetMember['role'] }) => patch(`/budgets/${budgetId}/members/${userId}`, { role }),
+      onSuccess: (_d, v) => refresh(v.budgetId),
+    }),
+    removeMember: useMutation({
+      mutationFn: ({ budgetId, userId }: { budgetId: string; userId: string }) => del(`/budgets/${budgetId}/members/${userId}`),
+      onSuccess: (_d, v) => refresh(v.budgetId),
+    }),
+    invite: useMutation({
+      mutationFn: ({ budgetId, userId, role }: { budgetId: string; userId: string; role: 'member' | 'viewer' }) => post(`/budgets/${budgetId}/invites`, { userId, role }),
+      onSuccess: (_d, v) => refresh(v.budgetId),
+    }),
+    deleteInvite: useMutation({
+      mutationFn: ({ budgetId, id }: { budgetId: string; id: string }) => del(`/budgets/${budgetId}/invites/${id}`),
+      onSuccess: (_d, v) => refresh(v.budgetId),
+    }),
+  };
+}
+
+export interface CrossTransferInput {
+  fromBudgetId: string;
+  fromAccountId: string;
+  toBudgetId: string;
+  toAccountId: string;
+  amount: number;
+  date: string;
+  comment?: string | null;
+}
+
+export function useCrossTransfer() {
+  const invalidate = useInvalidateAllMoney();
+  return {
+    create: useMutation({ mutationFn: (data: CrossTransferInput) => post<Transaction>('/transfers/cross-budget', data), onSuccess: invalidate }),
+    update: useMutation({
+      mutationFn: ({ groupId, data }: { groupId: string; data: { amount?: number; date?: string; comment?: string | null } }) =>
+        patch(`/transfers/cross-budget/${groupId}`, data),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+/** Удаление операции с обновлением всех бюджетов (для перевода между бюджетами). */
+export function useDeleteTxEverywhere() {
+  const { budgetId } = useBudget();
+  const invalidate = useInvalidateAllMoney();
+  return useMutation({ mutationFn: (id: string) => del(`/budgets/${budgetId}/transactions/${id}`), onSuccess: invalidate });
 }

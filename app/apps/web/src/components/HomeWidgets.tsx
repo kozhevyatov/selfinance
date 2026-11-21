@@ -101,6 +101,7 @@ export function MonthTotals({ s, prevLabel }: { s: Summary; prevLabel: PrevLabel
   const cmp = s.prevToDate ?? s.prev;
   const netDiff = s.net - cmp.net;
   return (
+    <>
     <div className="totals">
       <div className="total t-in">
         <span>Приход</span>
@@ -126,6 +127,20 @@ export function MonthTotals({ s, prevLabel }: { s: Summary; prevLabel: PrevLabel
         <small className="neutral"><Money value={s.avgPerWeek} round /> в неделю</small>
       </div>
     </div>
+    <CrossLine s={s} />
+    </>
+  );
+}
+
+/** Переводы между бюджетами — не доход и не расход, но показываем, чтобы итог сходился с балансом. */
+export function CrossLine({ s }: { s: Summary }) {
+  if (!s.crossIn && !s.crossOut) return null;
+  return (
+    <p className="hint" style={{ margin: '10px 0 0' }}>
+      {s.crossIn ? <>Получено из других бюджетов: <Money value={s.crossIn} sign="always" round /></> : null}
+      {s.crossIn && s.crossOut ? ' · ' : null}
+      {s.crossOut ? <>Передано в другие бюджеты: <Money value={-s.crossOut} round /></> : null}
+    </p>
   );
 }
 

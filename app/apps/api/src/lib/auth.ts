@@ -23,6 +23,8 @@ export function toUser(u: UsersTable): User {
     phone: u.phone,
     isAdmin: !!u.is_admin,
     timezone: u.timezone,
+    canShare: !!u.can_share,
+    weekStart: u.week_start === 0 ? 0 : 1,
   };
 }
 

@@ -18,13 +18,16 @@ export interface TxSheetOptions {
   recurring?: Recurring;
   /** покупка по запланированному расходу */
   planned?: Planned;
+  /** перевод между бюджетами */
+  cross?: boolean;
 }
 
 const LAST_ACC = 'sf.lastAccount.';
 
-export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () => void }) {
+export function TxSheet({ opts, onClose, onCross }: { opts: TxSheetOptions; onClose: () => void; onCross?: () => void }) {
   const { user } = useAuth();
-  const { budgetId, canEdit } = useBudget();
+  const { budgetId, budgets, canEdit } = useBudget();
+  const canCross = !opts.tx && budgets.filter((b) => b.role !== 'viewer').length > 1;
   const l = useLookups();
   const save = useSaveTx();
   const remove = useDeleteTx();
@@ -322,6 +325,9 @@ export function TxSheet({ opts, onClose }: { opts: TxSheetOptions; onClose: () =
             )}
             {type === 'transfer' && activeAccounts.length < 2 && (
               <p className="hint" style={{ margin: '8px 0 0' }}>Для перевода нужен второй счёт — добавьте его в разделе «Счета».</p>
+            )}
+            {type === 'transfer' && canCross && onCross && (
+              <button type="button" className="link" style={{ marginTop: 8 }} onClick={onCross}>Перевести в другой бюджет →</button>
             )}
             {(fields.toAccountId || fields.accountId) && <p className="field-error">{fields.toAccountId || fields.accountId}</p>}
           </div>

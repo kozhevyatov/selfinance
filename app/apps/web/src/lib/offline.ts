@@ -11,7 +11,7 @@ const VERSION = 1; // поменять, если изменится формат
 const MAX_AGE = 30 * 24 * 60 * 60 * 1000; // старше месяца — не показываем
 const MAX_SIZE = 3_000_000; // ~3 МБ, чтобы не упереться в лимит localStorage
 /** Эти запросы не сохраняем: служебные и админские. */
-const SKIP = new Set(['admin-settings', 'admin-users', 'invites', 'version']);
+const SKIP = new Set(['admin-settings', 'admin-users', 'admin-invites', 'invites', 'budget-invites', 'budget-candidates', 'incoming-invites', 'version']);
 
 interface Saved {
   v: number;

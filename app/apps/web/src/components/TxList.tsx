@@ -26,7 +26,11 @@ export function TxRow({ tx, l, onClick }: { tx: Transaction; l: Lookups; onClick
   if (tx.type === 'expense') sum = <Money value={-tx.amount} className="tx-sum" />;
   else if (tx.type === 'income') sum = <Money value={tx.amount} sign="always" className="tx-sum in" />;
   else if (tx.type === 'transfer') sum = <Money value={tx.amount} sign="never" className={'tx-sum' + (d.kind === 'freeze' || d.kind === 'unfreeze' ? ' tr' : d.kind === 'repay' || d.kind === 'borrow' ? ' crd' : '')} />;
+  else if (d.kind === 'cross') sum = <Money value={tx.amount} sign="always" className="tx-sum tr" />;
   else sum = <Money value={tx.amount} sign="always" className="tx-sum adj" />;
+  // в общем бюджете видно, кто внёс операцию
+  const author = l.shared ? l.member(tx.createdBy) : undefined;
+  const accLine = [tx.type !== 'transfer' && l.multiAccount ? accName : undefined, author].filter(Boolean).join(' · ');
 
   return (
     <button type="button" className="tx" onClick={onClick}>
@@ -38,9 +42,9 @@ export function TxRow({ tx, l, onClick }: { tx: Transaction; l: Lookups; onClick
       <div className="tx-right">
         <div>{sum}</div>
         {tx.type === 'transfer' ? (
-          <div className="tx-acc">перевод</div>
+          <div className="tx-acc">{author ? `перевод · ${author}` : 'перевод'}</div>
         ) : (
-          l.multiAccount && accName && <div className="tx-acc">{accName}</div>
+          accLine && <div className="tx-acc">{accLine}</div>
         )}
       </div>
     </button>

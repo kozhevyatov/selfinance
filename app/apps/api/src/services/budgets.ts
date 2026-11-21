@@ -88,6 +88,16 @@ export async function requireBudget(db: DB, budgetId: string, userId: string, mi
     .where('budgets.deleted_at', 'is', null)
     .executeTakeFirst();
   if (!row) throw notFound('Бюджет не найден');
+  // без разрешения «Общие бюджеты» общие бюджеты недоступны (членство сохраняется, вернётся с галочкой)
+  if (row.type === 'shared' && !(await canShare(db, userId))) throw notFound('Бюджет не найден');
   if (ROLE_RANK[row.role] < ROLE_RANK[minRole]) throw forbidden('Недостаточно прав в этом бюджете');
   return row;
 }
+
+/** Разрешено ли пользователю работать с общими бюджетами (галочка в админке). */
+export async function canShare(db: DB, userId: string) {
+  const u = await db.selectFrom('users').select('can_share').where('id', '=', userId).executeTakeFirst();
+  return !!u?.can_share;
+}
+
+export const NO_SHARE_MESSAGE = 'Вам не разрешены общие бюджеты. Попросите администратора включить их в вашем профиле';

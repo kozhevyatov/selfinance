@@ -73,3 +73,26 @@ export function dayTitle(date: string, today: string): string {
   if (date === addDays(today, -1)) return `Вчера, ${base}`;
   return y === parseISODate(today).y ? base : `${base} ${y}`;
 }
+
+/** День недели: 0 — воскресенье … 6 — суббота. */
+export function weekday(date: string): number {
+  const { y, m, d } = parseISODate(date);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/** Неделя, в которую входит дата. weekStart: 1 — с понедельника, 0 — с воскресенья. */
+export function weekRange(date: string, weekStart: 0 | 1 = 1): { from: string; to: string } {
+  const back = (weekday(date) - weekStart + 7) % 7;
+  const from = addDays(date, -back);
+  return { from, to: addDays(from, 6) };
+}
+
+/** «10–16 ноября», «28 октября – 3 ноября», с годом, если он не текущий. */
+export function rangeTitle(from: string, to: string, today?: string): string {
+  const a = parseISODate(from);
+  const b = parseISODate(to);
+  const year = today && parseISODate(today).y === b.y ? '' : ` ${b.y}`;
+  if (a.y === b.y && a.m === b.m) return `${a.d}–${b.d} ${MONTHS_GEN[b.m - 1]}${year}`;
+  const ay = a.y !== b.y ? ` ${a.y}` : '';
+  return `${a.d} ${MONTHS_GEN[a.m - 1]}${ay} – ${b.d} ${MONTHS_GEN[b.m - 1]}${year}`;
+}

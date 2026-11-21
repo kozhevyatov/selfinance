@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
-import { ArrowUpCircle, BarChart3, CalendarClock, ChevronDown, Home, List, LogOut, Menu, Moon, Plus, Repeat, Settings, Sun, Tag, Users, Wallet } from 'lucide-react';
+import { ArrowUpCircle, BarChart3, CalendarClock, ChevronDown, Home, List, LogOut, Menu, Moon, Plus, Repeat, Settings, Shield, Sun, Tag, Users, Wallet } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
+import { useIncomingInvites } from '../lib/queries';
 import { getTheme, toggleTheme } from '../lib/theme';
+import { CrossSheet } from './CrossSheet';
 import { TxSheet, type TxSheetOptions } from './TxSheet';
 import { OfflineBar, useUpdateBadge } from './UpdateInfo';
 
@@ -18,8 +20,14 @@ const NAV = [
   { to: '/recurring', label: 'Регулярные', icon: Repeat },
   { to: '/planned', label: 'Планы', icon: CalendarClock },
   { to: '/categories', label: 'Категории', icon: Tag },
-  { to: '/budgets', label: 'Бюджеты', icon: Users },
+  { to: '/budgets', label: 'Бюджеты', icon: Users, share: true },
+  { to: '/admin', label: 'Админка', icon: Shield, admin: true },
 ];
+
+/** Пункты меню, которые видит пользователь: «Бюджеты» — если админ разрешил общие бюджеты, «Админка» — администратору. */
+export function navItems<T extends { share?: boolean; admin?: boolean }>(items: T[], user: { canShare?: boolean; isAdmin?: boolean } | null) {
+  return items.filter((i) => (!i.share || !!user?.canShare) && (!i.admin || !!user?.isAdmin));
+}
 
 export function Layout() {
   const { user, signOut } = useAuth();
@@ -30,7 +38,7 @@ export function Layout() {
   const [params, setParams] = useSearchParams();
   const { pathname } = useLocation();
   const updateBadge = useUpdateBadge();
-  const moreActive = ['/more', '/accounts', '/recurring', '/planned', '/categories', '/budgets', '/settings'].some((p) => pathname.startsWith(p));
+  const moreActive = ['/more', '/accounts', '/recurring', '/planned', '/categories', '/budgets', '/settings', '/admin'].some((p) => pathname.startsWith(p));
 
   // ярлык «Добавить операцию» с иконки приложения: /?add=1
   useEffect(() => {
@@ -50,7 +58,7 @@ export function Layout() {
             <span>Selfinance</span>
           </Link>
           <nav className="nav" aria-label="Разделы">
-            {NAV.map(({ to, label, icon: I, end }) => (
+            {navItems(NAV, user).map(({ to, label, icon: I, end }) => (
               <NavLink key={to} to={to} end={end} title={label}>
                 <I size={20} strokeWidth={1.8} />
                 <span>{label}</span>
@@ -78,6 +86,7 @@ export function Layout() {
 
         <main className="page">
           <OfflineBar />
+          {!pathname.startsWith('/budgets') && <InviteBar />}
           <Outlet />
         </main>
       </div>
@@ -94,7 +103,11 @@ export function Layout() {
         <NavLink to="/more" className={() => (moreActive ? 'active' : '')}><span className="tab-ico"><Menu size={20} strokeWidth={1.8} />{updateBadge && <i className="tab-dot" aria-label="Есть обновление" />}</span>Ещё</NavLink>
       </nav>
 
-      {sheet && <TxSheet opts={sheet} onClose={close} />}
+      {sheet && (sheet.cross || sheet.tx?.linkedBudget ? (
+        <CrossSheet tx={sheet.tx} onClose={close} />
+      ) : (
+        <TxSheet opts={sheet} onClose={close} onCross={() => setSheet({ cross: true })} />
+      ))}
     </SheetCtx.Provider>
   );
 }
@@ -141,5 +154,22 @@ export function TopBar({ title, children }: { title?: string; children?: ReactNo
         </button>
       )}
     </header>
+  );
+}
+
+/** Напоминание о приглашении в общий бюджет — на всех страницах, кроме «Бюджетов». */
+function InviteBar() {
+  const { user } = useAuth();
+  const { data = [] } = useIncomingInvites(!!user?.canShare);
+  if (!data.length) return null;
+  const first = data[0];
+  return (
+    <Link to="/budgets" className="invite-bar">
+      <Users size={18} strokeWidth={1.8} />
+      <span>
+        {data.length === 1 ? `Вас пригласили в бюджет «${first.budgetName}»` : `Приглашений в общие бюджеты: ${data.length}`}
+      </span>
+      <b>Ответить</b>
+    </Link>
   );
 }

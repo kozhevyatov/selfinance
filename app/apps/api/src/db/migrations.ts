@@ -279,6 +279,19 @@ migrations['0008_planned_income'] = {
   },
 };
 
+migrations['0009_shared_budgets'] = {
+  async up(db: Kysely<any>) {
+    // может ли пользователь создавать общие бюджеты — включает администратор, по умолчанию нет
+    await db.schema.alterTable('users').addColumn('can_share', 'integer', (c) => c.notNull().defaultTo(0)).execute();
+    // первый день недели: 1 — понедельник, 0 — воскресенье
+    await db.schema.alterTable('users').addColumn('week_start', 'integer', (c) => c.notNull().defaultTo(1)).execute();
+    await db.schema.alterTable('budget_invites').addColumn('used_at', TS).execute();
+    // приглашение адресное: владелец выбирает пользователя из списка (только с разрешением «Общие бюджеты»)
+    await db.schema.alterTable('budget_invites').addColumn('user_id', ID).execute();
+    await db.schema.createIndex('idx_tx_transfer_group').on('transactions').column('transfer_group_id').execute();
+  },
+};
+
 class InlineProvider implements MigrationProvider {
   async getMigrations() {
     return migrations;

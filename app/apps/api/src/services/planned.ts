@@ -171,9 +171,10 @@ export async function expectedIncome(
   to: string,
   today: string,
   received: number,
-  cats?: string[],
+  f: { cats?: string[]; accountId?: string; userId?: string } = {},
 ): Promise<ExpectedIncome | null> {
   if (to < today) return null;
+  const { cats } = f;
 
   let pq = db
     .selectFrom('planned')
@@ -187,6 +188,8 @@ export async function expectedIncome(
   // будущий период — просроченные планы относятся к текущему, не к нему
   if (from > today) pq = pq.where('date', '>=', from);
   if (cats) pq = pq.where('category_id', 'in', cats);
+  if (f.accountId) pq = pq.where('account_id', '=', f.accountId);
+  if (f.userId) pq = pq.where('created_by', '=', f.userId);
   const planned = (await pq.execute()).reduce((s, p) => s + Number(p.amount), 0);
 
   let rq = db
@@ -197,7 +200,9 @@ export async function expectedIncome(
     .where('is_paused', '=', 0)
     .where('type', '=', 'income');
   if (cats) rq = rq.where('category_id', 'in', cats);
-  const rules = await rq.execute();
+  if (f.accountId) rq = rq.where('account_id', '=', f.accountId);
+  // у регулярных платежей нет автора — с фильтром по участнику их не учитываем
+  const rules = f.userId ? [] : await rq.execute();
   const skips = await loadSkips(db, rules.map((r) => r.id));
   let recurring = 0;
   for (const r of rules) {

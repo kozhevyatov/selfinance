@@ -1,7 +1,7 @@
 import { isCredit } from '@selfinance/shared';
 import { useMemo } from 'react';
 import type { Account, Category, Transaction } from '@selfinance/shared';
-import { useAllAccounts, useCategories } from './queries';
+import { useAllAccounts, useCategories, useCurrentMembers } from './queries';
 
 export interface Lookups {
   accounts: Account[];
@@ -9,24 +9,31 @@ export interface Lookups {
   account: (id: string | null | undefined) => Account | undefined;
   category: (id: string | null | undefined) => Category | undefined;
   multiAccount: boolean;
+  /** общий бюджет: имя того, кто внёс операцию; в личном — undefined */
+  member: (userId: string) => string | undefined;
+  shared: boolean;
   ready: boolean;
 }
 
 export function useLookups(): Lookups {
   const { data: accounts = [], isSuccess: a } = useAllAccounts();
   const { data: categories = [], isSuccess: c } = useCategories();
+  const { data: members = [] } = useCurrentMembers();
   return useMemo<Lookups>(() => {
     const am = new Map<string, Account>(accounts.map((x) => [x.id, x]));
     const cm = new Map<string, Category>(categories.map((x) => [x.id, x]));
+    const mm = new Map<string, string>(members.map((x) => [x.userId, x.name]));
     return {
       accounts,
       categories,
       account: (id) => (id ? am.get(id) : undefined),
       category: (id) => (id ? cm.get(id) : undefined),
       multiAccount: accounts.filter((x) => !x.isArchived).length > 1,
+      member: (id) => mm.get(id),
+      shared: members.length > 1,
       ready: a && c,
     };
-  }, [accounts, categories, a, c]);
+  }, [accounts, categories, members, a, c]);
 }
 
 /** Как показывать операцию в списке. */
@@ -50,6 +57,16 @@ export function describeTx(tx: Transaction, l: Lookups) {
     return {
       title, sub: tx.comment ? `${from} → ${dest}, ${tx.comment}` : `${from} → ${dest}`,
       icon: kind === 'freeze' || kind === 'unfreeze' ? 'snow' : kind === 'move' ? 'swap' : 'card', color: null as string | null, kind,
+    };
+  }
+  if (tx.type === 'adjustment' && tx.linkedBudget) {
+    const name = tx.linkedBudget.name;
+    return {
+      title: tx.amount < 0 ? `В бюджет «${name}»` : `Из бюджета «${name}»`,
+      sub: [acc?.name, tx.comment].filter(Boolean).join(', '),
+      icon: 'swap',
+      color: null as string | null,
+      kind: 'cross' as const,
     };
   }
   if (tx.type === 'adjustment') {
