@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
-import { ArrowUpCircle, BarChart3, CalendarClock, ChevronDown, Home, List, LogOut, Menu, Moon, Plus, Repeat, Settings, Shield, Sun, Tag, Users, Wallet } from 'lucide-react';
+import { ArrowUpCircle, BarChart3, CalendarClock, ChevronDown, Home, List, LogOut, Menu, Moon, Plus, Repeat, Settings, Sun, Tag, Users, Wallet } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
 import { useIncomingInvites } from '../lib/queries';
@@ -21,10 +21,9 @@ const NAV = [
   { to: '/planned', label: 'Планы', icon: CalendarClock },
   { to: '/categories', label: 'Категории', icon: Tag },
   { to: '/budgets', label: 'Бюджеты', icon: Users, share: true },
-  { to: '/admin', label: 'Админка', icon: Shield, admin: true },
 ];
 
-/** Пункты меню, которые видит пользователь: «Бюджеты» — если админ разрешил общие бюджеты, «Админка» — администратору. */
+/** Пункты меню, которые видит пользователь: «Бюджеты» — если админ разрешил общие бюджеты. Администрирование — в настройках. */
 export function navItems<T extends { share?: boolean; admin?: boolean }>(items: T[], user: { canShare?: boolean; isAdmin?: boolean } | null) {
   return items.filter((i) => (!i.share || !!user?.canShare) && (!i.admin || !!user?.isAdmin));
 }

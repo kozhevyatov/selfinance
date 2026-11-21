@@ -47,7 +47,7 @@ export function SettingsPage() {
           <Link to="/admin" className="more-item">
             <span className="more-ico"><Shield size={19} strokeWidth={1.8} /></span>
             <span className="more-text">
-              <b>Админка</b>
+              <b>Администрирование</b>
               <small className="muted">Пользователи, регистрация, приглашения</small>
             </span>
             <ChevronRight size={18} className="muted" />

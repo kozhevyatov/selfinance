@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Navigate } from 'react-router-dom';
-import { Copy, Plus, Trash2, X } from 'lucide-react';
+import { Link, Navigate } from 'react-router-dom';
+import { ChevronLeft, Copy, Plus, Trash2, X } from 'lucide-react';
 import { formatPhone, type AdminUser, type Invite, type RegistrationMode } from '@selfinance/shared';
 import { TopBar } from '../components/Layout';
 import { ApiError, del, get, patch, post } from '../lib/api';
@@ -10,7 +10,7 @@ import { Field } from './AuthPages';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
-/** Админка: регистрация, приглашения, пользователи. Чужие финансы администратор не видит. */
+/** Администрирование: регистрация, приглашения, пользователи. Чужие финансы администратор не видит. */
 export function AdminPage() {
   const qc = useQueryClient();
   const { user: me } = useAuth();
@@ -49,7 +49,8 @@ export function AdminPage() {
 
   return (
     <>
-      <TopBar title="Админка" />
+      <TopBar title="Администрирование" />
+      <Link to="/settings" className="back-link"><ChevronLeft size={16} /> Настройки</Link>
       <div className="settings">
       <section className="panel">
         <div className="panel-head">

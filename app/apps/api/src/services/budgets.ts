@@ -94,7 +94,7 @@ export async function requireBudget(db: DB, budgetId: string, userId: string, mi
   return row;
 }
 
-/** Разрешено ли пользователю работать с общими бюджетами (галочка в админке). */
+/** Разрешено ли пользователю работать с общими бюджетами (галочка в администрировании). */
 export async function canShare(db: DB, userId: string) {
   const u = await db.selectFrom('users').select('can_share').where('id', '=', userId).executeTakeFirst();
   return !!u?.can_share;

@@ -182,7 +182,7 @@ export default async function budgetRoutes(app: FastifyInstance) {
     const { userId, role } = budgetInviteCreateSchema.parse(req.body ?? {});
     const target = await db.selectFrom('users').select(['id', 'can_share', 'is_blocked']).where('id', '=', userId).executeTakeFirst();
     if (!target || target.is_blocked) throw notFound('Пользователь не найден');
-    if (!target.can_share) throw badRequest('У этого пользователя нет разрешения «Общие бюджеты» — его можно включить в админке');
+    if (!target.can_share) throw badRequest('У этого пользователя нет разрешения «Общие бюджеты» — его можно включить в администрировании');
     if ((await busyUserIds(db, b.id)).has(userId)) throw badRequest('Этот пользователь уже в бюджете или уже приглашён');
     const row: BudgetInvitesTable = {
       id: uuidv7(),

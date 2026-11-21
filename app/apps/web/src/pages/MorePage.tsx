@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CalendarClock, ChevronRight, LogOut, Repeat, Settings, Shield, Tag, Users, Wallet } from 'lucide-react';
+import { CalendarClock, ChevronRight, LogOut, Repeat, Settings, Tag, Users, Wallet } from 'lucide-react';
 import { TopBar, navItems } from '../components/Layout';
 import { UpdateInfo } from '../components/UpdateInfo';
 import { useAuth } from '../lib/auth';
@@ -11,7 +11,6 @@ const ITEMS = [
   { to: '/categories', label: 'Категории', hint: 'Добавить, изменить, удалить', icon: Tag },
   { to: '/budgets', label: 'Бюджеты', hint: 'Личный и семейные', icon: Users, share: true },
   { to: '/settings', label: 'Настройки', hint: 'Профиль, пароль, оформление', icon: Settings },
-  { to: '/admin', label: 'Админка', hint: 'Пользователи и регистрация', icon: Shield, admin: true },
 ];
 
 /** «Ещё» — разделы, которые не поместились в нижнюю панель на телефоне. */
