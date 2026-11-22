@@ -27,5 +27,6 @@ export const KEYS = {
   auth: 'sf.auth',
   user: 'sf.user',
   budget: 'sf.budget',
+  theme: 'sf.theme',
   lastAccount: (budgetId: string) => `sf.lastAccount.${budgetId}`,
 };

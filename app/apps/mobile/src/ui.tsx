@@ -32,8 +32,9 @@ export function T({
 
 /** «12 345,67 ₽» с приглушёнными копейками и табличными цифрами. */
 export function Money({
-  value,
+  value: raw,
   sign = 'auto',
+  round,
   size = 15,
   weight = '600',
   tone,
@@ -45,8 +46,11 @@ export function Money({
   weight?: TextStyle['fontWeight'];
   tone?: Tone;
   style?: StyleProp<TextStyle>;
+  /** до целых рублей, без копеек */
+  round?: boolean;
 }) {
   const t = useTheme();
+  const value = round ? Math.round(raw / 100) * 100 : raw;
   const p = moneyParts(value, { sign });
   const color = tone ? t[tone] : t.text;
   return (

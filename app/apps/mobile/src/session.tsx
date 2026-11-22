@@ -13,6 +13,8 @@ interface Session {
   disconnect: () => Promise<void>;
   signIn: (auth: AuthResponse) => Promise<void>;
   signOut: () => Promise<void>;
+  /** профиль изменён в настройках */
+  updateUser: (u: User) => void;
 }
 
 const Ctx = createContext<Session | null>(null);
@@ -90,8 +92,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [reset]);
 
   const value = useMemo(
-    () => ({ booting, server, user, connect, disconnect, signIn, signOut }),
-    [booting, server, user, connect, disconnect, signIn, signOut],
+    () => ({ booting, server, user, connect, disconnect, signIn, signOut, updateUser: setUser }),
+    [booting, server, user, connect, disconnect, signIn, signOut, setUser],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

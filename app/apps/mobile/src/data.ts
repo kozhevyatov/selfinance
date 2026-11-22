@@ -2,16 +2,29 @@ import { useMemo } from 'react';
 import {
   isCredit,
   type Account,
+  type AdminUser,
+  type Budget,
+  type BudgetInvite,
   type BudgetMember,
   type Capital,
   type Category,
+  type DynamicsPoint,
+  type IncomingInvite,
+  type Invite,
+  type InviteCandidate,
+  type Limits,
+  type Planned,
+  type PlannedOverview,
+  type Recurring,
+  type RegistrationMode,
   type Summary,
   type Transaction,
   type TxCreateInput,
   type TxPage,
   type TxType,
+  type UpcomingPayment,
 } from '@selfinance/shared';
-import { del, get, patch, post } from './api';
+import { api, del, get, patch, post } from './api';
 import { invalidateAll, usePaged, useQuery } from './query';
 import { useBudget } from './session';
 
@@ -32,9 +45,87 @@ export function useCapital() {
   return useQuery(`capital:${budgetId}`, () => get<Capital>(`/budgets/${budgetId}/stats/capital`));
 }
 
-export function useSummary(from: string, to: string) {
+export interface StatsFilter {
+  categoryId?: string | null;
+  accountId?: string | null;
+  userId?: string | null;
+}
+
+const fkey = (f: StatsFilter) => `${f.categoryId ?? ''}:${f.accountId ?? ''}:${f.userId ?? ''}`;
+
+export function useSummary(from: string, to: string, filter: StatsFilter = {}, enabled = true) {
   const { budgetId } = useBudget();
-  return useQuery(`summary:${budgetId}:${from}:${to}`, () => get<Summary>(`/budgets/${budgetId}/stats/summary`, { from, to }));
+  return useQuery(enabled ? `summary:${budgetId}:${from}:${to}:${fkey(filter)}` : null, () =>
+    get<Summary>(`/budgets/${budgetId}/stats/summary`, { from, to, ...filter }),
+  );
+}
+
+export function useDynamics(to: string, months = 12, filter: StatsFilter = {}) {
+  const { budgetId } = useBudget();
+  return useQuery(`dynamics:${budgetId}:${to}:${months}:${fkey(filter)}`, () =>
+    get<DynamicsPoint[]>(`/budgets/${budgetId}/stats/dynamics`, { to, months, ...filter }),
+  );
+}
+
+export function useLimits(month: string) {
+  const { budgetId } = useBudget();
+  return useQuery(`limits:${budgetId}:${month}`, () => get<Limits>(`/budgets/${budgetId}/limits`, { month }));
+}
+
+export function useUpcoming() {
+  const { budgetId } = useBudget();
+  return useQuery(`upcoming:${budgetId}`, () => get<UpcomingPayment[]>(`/budgets/${budgetId}/recurring/upcoming`));
+}
+
+export function useRecurring() {
+  const { budgetId } = useBudget();
+  return useQuery(`recurring:${budgetId}`, () => get<Recurring[]>(`/budgets/${budgetId}/recurring`));
+}
+
+export function usePlanned() {
+  const { budgetId } = useBudget();
+  return useQuery(`planned:${budgetId}`, () => get<PlannedOverview>(`/budgets/${budgetId}/planned`));
+}
+
+/** Счета любого бюджета — для перевода между бюджетами. */
+export function useBudgetAccounts(budgetId: string) {
+  return useQuery(budgetId ? `accounts-all:${budgetId}` : null, () => get<Account[]>(`/budgets/${budgetId}/accounts`, { archived: 1 }));
+}
+
+export function useBudgetMembers(budgetId: string) {
+  return useQuery(budgetId ? `members:${budgetId}` : null, () => get<BudgetMember[]>(`/budgets/${budgetId}/members`));
+}
+
+export function useBudgetInvites(budgetId: string, enabled: boolean) {
+  return useQuery(enabled ? `budget-invites:${budgetId}` : null, () => get<BudgetInvite[]>(`/budgets/${budgetId}/invites`));
+}
+
+export function useCandidates(budgetId: string, enabled: boolean) {
+  return useQuery(enabled ? `candidates:${budgetId}` : null, () => get<InviteCandidate[]>(`/budgets/${budgetId}/candidates`));
+}
+
+export function useIncomingInvites(enabled: boolean) {
+  return useQuery(enabled ? 'incoming-invites' : null, () => get<IncomingInvite[]>('/budget-invites'));
+}
+
+export interface SessionInfo {
+  id: string;
+  deviceName: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export function useSessions() {
+  return useQuery('sessions', () => get<SessionInfo[]>('/auth/sessions'));
+}
+
+export function useAdmin() {
+  const settings = useQuery('admin-settings', () =>
+    get<{ registration: RegistrationMode; version: string; dbType: string | null }>('/admin/settings'),
+  );
+  const users = useQuery('admin-users', () => get<AdminUser[]>('/admin/users'));
+  const invites = useQuery('admin-invites', () => get<Invite[]>('/admin/invites'));
+  return { settings, users, invites };
 }
 
 export function useMembers() {
@@ -47,14 +138,17 @@ export function useMembers() {
 export interface TxFilters {
   type?: TxType;
   q?: string;
+  from?: string;
+  to?: string;
+  account?: string;
+  category?: string;
 }
 
 export function useTxFeed(filters: TxFilters = {}, limit = 50) {
   const { budgetId } = useBudget();
-  const key = `tx:${budgetId}:${filters.type ?? ''}:${filters.q ?? ''}:${limit}`;
-  return usePaged<Transaction>(key, (cursor) =>
-    get<TxPage>(`/budgets/${budgetId}/transactions`, { type: filters.type, q: filters.q, limit, cursor }),
-  );
+  const f = filters;
+  const key = `tx:${budgetId}:${f.type ?? ''}:${f.q ?? ''}:${f.from ?? ''}:${f.to ?? ''}:${f.account ?? ''}:${f.category ?? ''}:${limit}`;
+  return usePaged<Transaction>(key, (cursor) => get<TxPage>(`/budgets/${budgetId}/transactions`, { ...f, limit, cursor }));
 }
 
 /* ---------- изменения ---------- */
@@ -71,6 +165,129 @@ export async function deleteTx(budgetId: string, id: string) {
   await del(`/budgets/${budgetId}/transactions/${id}`);
   invalidateAll();
 }
+
+/** Выполнить запрос и обновить все данные на экране. */
+async function mutate<T>(p: Promise<T>): Promise<T> {
+  const r = await p;
+  invalidateAll();
+  return r;
+}
+
+export interface AccountInput {
+  name?: string;
+  kind?: Account['kind'];
+  isFrozen?: boolean;
+  bankName?: string | null;
+  note?: string | null;
+  creditLimit?: number | null;
+  includeInFree?: boolean;
+  initialBalance?: number;
+  isArchived?: boolean;
+}
+
+export const accountsApi = (b: string) => ({
+  save: (data: AccountInput, id?: string) =>
+    mutate(id ? patch<Account>(`/budgets/${b}/accounts/${id}`, data) : post<Account>(`/budgets/${b}/accounts`, data)),
+  remove: (id: string) => mutate(del<{ archived?: boolean; deleted?: boolean }>(`/budgets/${b}/accounts/${id}`)),
+  reconcile: (id: string, actualBalance: number) =>
+    mutate(post<{ balance: number; adjustment: number }>(`/budgets/${b}/accounts/${id}/reconcile`, { actualBalance })),
+});
+
+export interface CategoryInput {
+  type?: 'income' | 'expense';
+  name?: string;
+  parentId?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  isArchived?: boolean;
+  sort?: number;
+  excludeFromLimit?: boolean;
+}
+
+export const categoriesApi = (b: string) => ({
+  save: (data: CategoryInput, id?: string) =>
+    mutate(id ? patch<Category>(`/budgets/${b}/categories/${id}`, data) : post<Category>(`/budgets/${b}/categories`, data)),
+  remove: (id: string) => mutate(del<{ archived?: boolean; deleted?: boolean }>(`/budgets/${b}/categories/${id}`)),
+});
+
+export interface RecurringInput {
+  transactionId?: string;
+  name?: string;
+  type?: 'income' | 'expense';
+  amount?: number;
+  amountVaries?: boolean;
+  categoryId?: string | null;
+  accountId?: string | null;
+  dayOfMonth?: number;
+  dayPinned?: boolean;
+  intervalMonths?: number;
+  remindDays?: number;
+  isPaused?: boolean;
+}
+
+export const recurringApi = (b: string) => ({
+  save: (data: RecurringInput, id?: string) =>
+    mutate(id ? patch<Recurring>(`/budgets/${b}/recurring/${id}`, data) : post<Recurring>(`/budgets/${b}/recurring`, data)),
+  remove: (id: string) => mutate(del(`/budgets/${b}/recurring/${id}`)),
+  skip: (id: string) => mutate(post(`/budgets/${b}/recurring/${id}/skip`)),
+  link: (id: string, transactionId: string) => mutate(post(`/budgets/${b}/recurring/${id}/link`, { transactionId })),
+});
+
+export async function saveLimits(
+  b: string,
+  data: { includeRecurring?: boolean; set: { categoryId: string | null; amount: number }[]; fromMonth: string },
+) {
+  if (data.includeRecurring !== undefined) await patch(`/budgets/${b}/limit-settings`, { includeRecurring: data.includeRecurring });
+  for (const l of data.set) await api('PUT', `/budgets/${b}/limits`, { ...l, fromMonth: data.fromMonth });
+  invalidateAll();
+}
+
+export interface PlannedInput {
+  type?: 'income' | 'expense';
+  name?: string;
+  amount?: number;
+  date?: string | null;
+  categoryId?: string | null;
+  accountId?: string | null;
+  comment?: string | null;
+  excludeFromLimit?: boolean;
+}
+
+export const plannedApi = (b: string) => ({
+  save: (data: PlannedInput, id?: string) =>
+    mutate(id ? patch<Planned>(`/budgets/${b}/planned/${id}`, data) : post<Planned>(`/budgets/${b}/planned`, data)),
+  action: (id: string, action: 'cancel' | 'restore' | 'delete') =>
+    mutate(action === 'delete' ? del(`/budgets/${b}/planned/${id}`) : post(`/budgets/${b}/planned/${id}/${action}`)),
+});
+
+export const crossApi = {
+  create: (data: { fromBudgetId: string; fromAccountId: string; toBudgetId: string; toAccountId: string; amount: number; date: string; comment?: string | null }) =>
+    mutate(post<Transaction>('/transfers/cross-budget', data)),
+  update: (groupId: string, data: { amount?: number; date?: string; comment?: string | null }) =>
+    mutate(patch(`/transfers/cross-budget/${groupId}`, data)),
+};
+
+export const budgetsApi = {
+  create: (data: { name: string; currency?: string }) => mutate(post<Budget>('/budgets', data)),
+  update: (id: string, data: { name?: string; currency?: string }) => mutate(patch(`/budgets/${id}`, data)),
+  remove: (id: string) => mutate(del(`/budgets/${id}`)),
+  setRole: (budgetId: string, userId: string, role: BudgetMember['role']) => mutate(patch(`/budgets/${budgetId}/members/${userId}`, { role })),
+  removeMember: (budgetId: string, userId: string) => mutate(del(`/budgets/${budgetId}/members/${userId}`)),
+  invite: (budgetId: string, userId: string, role: 'member' | 'viewer') => mutate(post(`/budgets/${budgetId}/invites`, { userId, role })),
+  deleteInvite: (budgetId: string, id: string) => mutate(del(`/budgets/${budgetId}/invites/${id}`)),
+  answer: (id: string, accept: boolean) => mutate(post<{ budgetId?: string }>(`/budget-invites/${id}/${accept ? 'accept' : 'decline'}`)),
+};
+
+export const adminApi = {
+  setRegistration: (registration: RegistrationMode) => mutate(patch('/admin/settings', { registration })),
+  updateUser: (id: string, data: { isBlocked?: boolean; isAdmin?: boolean; canShare?: boolean; password?: string }) =>
+    mutate(patch(`/admin/users/${id}`, data)),
+  createUser: (data: { name: string; login: string; password: string; canShare: boolean; isAdmin: boolean }) => mutate(post('/admin/users', data)),
+  newInvite: () => mutate(post<Invite>('/admin/invites', { days: 7 })),
+  deleteInvite: (id: string) => mutate(del(`/admin/invites/${id}`)),
+};
+
+export const revokeSession = (id: string) => mutate(del(`/auth/sessions/${id}`));
 
 /* ---------- справочники ---------- */
 

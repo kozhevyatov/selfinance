@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -7,22 +7,40 @@ import { ConnectScreen } from './src/screens/ConnectScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { MainScreen } from './src/screens/MainScreen';
 import { BudgetProvider, SessionProvider, useSession } from './src/session';
-import { dark, light, ThemeCtx } from './src/theme';
+import { KEYS, load, save } from './src/storage';
+import { dark, light, ThemeCtx, ThemePrefCtx, type ThemePref } from './src/theme';
 import { Button, Center, ErrorBox, Spinner } from './src/ui';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function App() {
   const scheme = useColorScheme();
-  const theme = scheme === 'dark' ? dark : light;
+  const [pref, setPrefState] = useState<ThemePref>('system');
+  useEffect(() => {
+    load<ThemePref>(KEYS.theme).then((p) => p && setPrefState(p));
+  }, []);
+  const prefValue = useMemo(
+    () => ({
+      pref,
+      setPref: (p: ThemePref) => {
+        setPrefState(p);
+        void save(KEYS.theme, p === 'system' ? null : p);
+      },
+    }),
+    [pref],
+  );
+  const isDark = pref === 'system' ? scheme === 'dark' : pref === 'dark';
+  const theme = isDark ? dark : light;
   return (
     <SafeAreaProvider>
-      <ThemeCtx.Provider value={theme}>
-        <StatusBar style={theme.dark ? 'light' : 'dark'} />
-        <SessionProvider>
-          <Root />
-        </SessionProvider>
-      </ThemeCtx.Provider>
+      <ThemePrefCtx.Provider value={prefValue}>
+        <ThemeCtx.Provider value={theme}>
+          <StatusBar style={theme.dark ? 'light' : 'dark'} />
+          <SessionProvider>
+            <Root />
+          </SessionProvider>
+        </ThemeCtx.Provider>
+      </ThemePrefCtx.Provider>
     </SafeAreaProvider>
   );
 }

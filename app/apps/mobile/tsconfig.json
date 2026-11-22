@@ -3,8 +3,17 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@selfinance/shared": ["../../packages/shared/src/index.ts"]
+      "@selfinance/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "zod": [
+        "./node_modules/zod"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "../../packages/shared/src/**/*.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../../packages/shared/src/**/*.ts"
+  ]
 }
