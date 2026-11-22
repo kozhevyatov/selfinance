@@ -25,6 +25,7 @@ import {
   type UpcomingPayment,
 } from '@selfinance/shared';
 import { api, del, get, patch, post } from './api';
+import { currentUserId, pendingTx, sendOrQueue, txFromBody, useQueue, uuidv7, type PendingTx } from './offline';
 import { invalidateAll, usePaged, useQuery } from './query';
 import { useBudget } from './session';
 
@@ -148,21 +149,72 @@ export function useTxFeed(filters: TxFilters = {}, limit = 50) {
   const { budgetId } = useBudget();
   const f = filters;
   const key = `tx:${budgetId}:${f.type ?? ''}:${f.q ?? ''}:${f.from ?? ''}:${f.to ?? ''}:${f.account ?? ''}:${f.category ?? ''}:${limit}`;
-  return usePaged<Transaction>(key, (cursor) => get<TxPage>(`/budgets/${budgetId}/transactions`, { ...f, limit, cursor }));
+  const feed = usePaged<Transaction>(key, (cursor) => get<TxPage>(`/budgets/${budgetId}/transactions`, { ...f, limit, cursor }));
+  // неотправленные изменения видны в ленте сразу
+  useQueue();
+  const p = pendingTx(budgetId);
+  const items = p.ids.size ? withPending(feed.items, p, f) : feed.items;
+  return { ...feed, items, pendingIds: p.ids };
+}
+
+const TX_FIELDS = ['type', 'amount', 'date', 'time', 'accountId', 'toAccountId', 'categoryId', 'comment', 'recurringId'] as const;
+
+/** Лента с учётом очереди: удалённые убраны, изменённые обновлены, новые добавлены по дате. */
+function withPending(items: Transaction[], p: PendingTx, f: TxFilters): Transaction[] {
+  const out = items
+    .filter((tx) => !p.deleted.has(tx.id))
+    .map((tx) => {
+      const upd = p.updated.get(tx.id);
+      if (!upd) return tx;
+      const next = { ...tx } as Record<string, unknown>;
+      for (const k of TX_FIELDS) if (k in upd) next[k] = upd[k];
+      return next as unknown as Transaction;
+    });
+  const have = new Set(out.map((tx) => tx.id));
+  const q = f.q?.toLowerCase();
+  const fresh = p.created.filter(
+    (tx) =>
+      !have.has(tx.id) &&
+      (!f.type || tx.type === f.type) &&
+      (!f.from || tx.date >= f.from) &&
+      (!f.to || tx.date <= f.to) &&
+      (!f.account || tx.accountId === f.account || tx.toAccountId === f.account) &&
+      (!f.category || (f.category === 'none' ? !tx.categoryId : tx.categoryId === f.category)) &&
+      (!q || (tx.comment ?? '').toLowerCase().includes(q)),
+  );
+  if (!fresh.length) return out;
+  return [...fresh, ...out].sort((a, b) => (a.date === b.date ? (a.createdAt < b.createdAt ? 1 : -1) : a.date < b.date ? 1 : -1));
 }
 
 /* ---------- изменения ---------- */
 
-export async function saveTx(budgetId: string, data: Partial<TxCreateInput>, id?: string) {
-  const res = id
-    ? await patch<Transaction>(`/budgets/${budgetId}/transactions/${id}`, data)
-    : await post<Transaction>(`/budgets/${budgetId}/transactions`, data);
+/**
+ * Сохранить операцию. Без связи — в очередь: операция сразу видна в ленте и уйдёт на сервер позже.
+ * id новой операции задаёт приложение — повторная отправка не создаст дубль.
+ */
+export async function saveTx(budgetId: string, data: Partial<TxCreateInput>, id?: string): Promise<Transaction> {
+  const txId = id ?? uuidv7();
+  const body = (id ? data : { ...data, id: txId }) as Record<string, unknown>;
+  const res = await sendOrQueue<Transaction>(
+    {
+      method: id ? 'PATCH' : 'POST',
+      path: id ? `/budgets/${budgetId}/transactions/${id}` : `/budgets/${budgetId}/transactions`,
+      body,
+      budgetId,
+      kind: id ? 'tx-update' : 'tx-create',
+      txId,
+    },
+    () => txFromBody({ txId, body, createdAt: new Date().toISOString(), userId: currentUserId() }),
+  );
   invalidateAll();
   return res;
 }
 
 export async function deleteTx(budgetId: string, id: string) {
-  await del(`/budgets/${budgetId}/transactions/${id}`);
+  await sendOrQueue(
+    { method: 'DELETE', path: `/budgets/${budgetId}/transactions/${id}`, budgetId, kind: 'tx-delete', txId: id },
+    () => null,
+  );
   invalidateAll();
 }
 
@@ -229,6 +281,14 @@ export const recurringApi = (b: string) => ({
   save: (data: RecurringInput, id?: string) =>
     mutate(id ? patch<Recurring>(`/budgets/${b}/recurring/${id}`, data) : post<Recurring>(`/budgets/${b}/recurring`, data)),
   remove: (id: string) => mutate(del(`/budgets/${b}/recurring/${id}`)),
+  /** из окна операции: без связи встаёт в очередь вслед за операцией */
+  saveQueued: (data: RecurringInput, id?: string) =>
+    sendOrQueue(
+      { method: id ? 'PATCH' : 'POST', path: id ? `/budgets/${b}/recurring/${id}` : `/budgets/${b}/recurring`, body: { ...data }, budgetId: b, kind: 'other' },
+      () => null,
+    ).then(() => invalidateAll()),
+  removeQueued: (id: string) =>
+    sendOrQueue({ method: 'DELETE', path: `/budgets/${b}/recurring/${id}`, budgetId: b, kind: 'other' }, () => null).then(() => invalidateAll()),
   skip: (id: string) => mutate(post(`/budgets/${b}/recurring/${id}/skip`)),
   link: (id: string, transactionId: string) => mutate(post(`/budgets/${b}/recurring/${id}/link`, { transactionId })),
 });

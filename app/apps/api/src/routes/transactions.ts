@@ -206,6 +206,14 @@ export default async function transactionRoutes(app: FastifyInstance) {
     const { budgetId } = req.params;
     await requireBudget(db, budgetId, user.id, 'member');
     const input = txCreateSchema.parse(req.body);
+    // приложение могло отправить операцию повторно (связь оборвалась до ответа) — отдаём уже созданную
+    if (input.id) {
+      const existing = await db.selectFrom('transactions').selectAll().where('id', '=', input.id).executeTakeFirst();
+      if (existing) {
+        if (existing.budget_id === budgetId && !existing.deleted_at) return toTxOne(db, existing);
+        throw badRequest('Операция с таким id уже есть');
+      }
+    }
     const fields = await validateTx(db, budgetId, input);
     const plan = input.plannedId ? await getPlan(db, budgetId, input.plannedId) : undefined;
     if (input.plannedId) {
@@ -216,7 +224,7 @@ export default async function transactionRoutes(app: FastifyInstance) {
     }
     const now = nowIso();
     const row: TransactionsTable = {
-      id: uuidv7(),
+      id: input.id ?? uuidv7(),
       budget_id: budgetId,
       ...fields,
       planned_id: plan?.id ?? null,

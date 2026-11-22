@@ -147,7 +147,7 @@ export function OperationsScreen() {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
         renderSectionHeader={({ section }) => <DayHeader date={section.date} total={section.total} today={today} />}
-        renderItem={({ item }) => <TxRow tx={item} l={l} onPress={() => nav.openTx({ tx: item })} />}
+        renderItem={({ item }) => <TxRow tx={item} l={l} onPress={() => nav.openTx({ tx: item })} pending={feed.pendingIds.has(item.id)} />}
         onEndReached={() => void feed.loadMore()}
         onEndReachedThreshold={0.5}
         refreshControl={<RefreshControl refreshing={feed.loading && feed.items.length > 0} onRefresh={feed.reload} tintColor={t.accent} />}

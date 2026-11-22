@@ -4,6 +4,7 @@ import { Coins, KeyRound, LogOut, Palette, Shield, Smartphone, User as UserIcon,
 import { formatPhone, type User, type WeekStart } from '@selfinance/shared';
 import { ApiError, patch } from '../api';
 import { budgetsApi, revokeSession, useSessions } from '../data';
+import { pendingNote } from '../offline';
 import { CurrencySelect } from '../currency';
 import { fmtDateLong } from '../format';
 import { Divider, Hint, MenuRow, PageHeader, Select } from '../kit';
@@ -52,7 +53,7 @@ export function SettingsScreen() {
             title="Выйти"
             danger
             onPress={() =>
-              Alert.alert('Выйти из аккаунта?', undefined, [
+              Alert.alert('Выйти из аккаунта?', pendingNote(), [
                 { text: 'Отмена', style: 'cancel' },
                 { text: 'Выйти', style: 'destructive', onPress: () => void signOut() },
               ])

@@ -22,6 +22,23 @@ let server = '';
 let tokens: Tokens | null = null;
 let onLogout: (() => void) | null = null;
 
+/* ---------- есть ли связь с сервером ---------- */
+
+let online = true;
+const netListeners = new Set<(online: boolean) => void>();
+export const isOnline = () => online;
+export function onNetChange(fn: (online: boolean) => void) {
+  netListeners.add(fn);
+  return () => {
+    netListeners.delete(fn);
+  };
+}
+function setOnline(v: boolean) {
+  if (online === v) return;
+  online = v;
+  netListeners.forEach((fn) => fn(v));
+}
+
 export const setLogoutHandler = (fn: () => void) => (onLogout = fn);
 export const getServer = () => server;
 export const hasTokens = () => !!tokens;
@@ -139,10 +156,12 @@ export async function api<T>(method: string, path: string, body?: unknown, query
       signal: t.signal,
     });
   } catch {
+    setOnline(false);
     throw new ApiError(0, 'NETWORK', 'Нет связи с сервером');
   } finally {
     t.done();
   }
+  setOnline(true);
 
   if (res.status === 401 && retry && tokens && !path.startsWith('/auth/login')) {
     const ok = await refresh();

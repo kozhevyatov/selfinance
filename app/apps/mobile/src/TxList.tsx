@@ -1,11 +1,12 @@
 import { Pressable, View } from 'react-native';
+import { CloudUpload } from 'lucide-react-native';
 import { dayTitle, type Transaction } from '@selfinance/shared';
 import { describeTx, type Lookups } from './data';
 import { CatIcon } from './icons';
 import { useTheme } from './theme';
 import { Money, T } from './ui';
 
-export function TxRow({ tx, l, onPress }: { tx: Transaction; l: Lookups; onPress?: () => void }) {
+export function TxRow({ tx, l, onPress, pending }: { tx: Transaction; l: Lookups; onPress?: () => void; pending?: boolean }) {
   const t = useTheme();
   const d = describeTx(tx, l);
   const iconColor = d.icon === 'snow' ? t.frozen : d.kind === 'repay' || d.kind === 'borrow' ? t.credit : d.color;
@@ -25,8 +26,9 @@ export function TxRow({ tx, l, onPress }: { tx: Transaction; l: Lookups; onPress
 
   const author = l.shared ? l.member(tx.createdBy) : undefined;
   const accName = l.account(tx.accountId)?.name;
-  const right =
-    tx.type === 'transfer'
+  const right = pending
+    ? 'ждёт отправки'
+    : tx.type === 'transfer'
       ? author ? `перевод · ${author}` : 'перевод'
       : [l.multiAccount ? accName : undefined, author].filter(Boolean).join(' · ');
 
@@ -42,7 +44,12 @@ export function TxRow({ tx, l, onPress }: { tx: Transaction; l: Lookups; onPress
       </View>
       <View style={{ alignItems: 'flex-end', maxWidth: '45%' }}>
         {sum}
-        {!!right && <T size={12} tone="faint" numberOfLines={1}>{right}</T>}
+        {!!right && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            {pending && <CloudUpload size={12} color={t.credit} />}
+            <T size={12} tone={pending ? 'credit' : 'faint'} numberOfLines={1}>{right}</T>
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -76,14 +83,26 @@ export function DayHeader({ date, total, today }: { date: string; total: number;
   );
 }
 
-export function TxDays({ items, l, today, onOpen }: { items: Transaction[]; l: Lookups; today: string; onOpen: (tx: Transaction) => void }) {
+export function TxDays({
+  items,
+  l,
+  today,
+  onOpen,
+  pendingIds,
+}: {
+  items: Transaction[];
+  l: Lookups;
+  today: string;
+  onOpen: (tx: Transaction) => void;
+  pendingIds?: Set<string>;
+}) {
   return (
     <>
       {groupByDay(items).map((g) => (
         <View key={g.date}>
           <DayHeader date={g.date} total={g.total} today={today} />
           {g.items.map((tx) => (
-            <TxRow key={tx.id} tx={tx} l={l} onPress={() => onOpen(tx)} />
+            <TxRow key={tx.id} tx={tx} l={l} onPress={() => onOpen(tx)} pending={pendingIds?.has(tx.id)} />
           ))}
         </View>
       ))}

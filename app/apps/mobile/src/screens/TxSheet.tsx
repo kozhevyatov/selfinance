@@ -153,15 +153,15 @@ function TxForm({ opts, onClose, onCross }: { opts: TxSheetOptions; onClose: () 
         edit?.id,
       );
       const rapi = recurringApi(budgetId);
-      if (unlink && ruleId) await rapi.remove(ruleId);
+      if (unlink && ruleId) await rapi.removeQueued(ruleId);
       else if (isRecurring && regularAllowed && !ruleId) {
-        await rapi.save({ transactionId: saved.id, name: ruleName.trim() || undefined, intervalMonths: ruleInterval, remindDays: ruleRemind });
+        await rapi.saveQueued({ transactionId: saved.id, name: ruleName.trim() || undefined, intervalMonths: ruleInterval, remindDays: ruleRemind });
       } else if (isRecurring && ruleId && linkedRule) {
         const patch: { name?: string; intervalMonths?: number; remindDays?: number } = {};
         if (ruleName.trim() && ruleName.trim() !== linkedRule.name) patch.name = ruleName.trim();
         if (ruleInterval !== (linkedRule.intervalMonths ?? 1)) patch.intervalMonths = ruleInterval;
         if (ruleRemind !== linkedRule.remindDays) patch.remindDays = ruleRemind;
-        if (Object.keys(patch).length) await rapi.save(patch, ruleId);
+        if (Object.keys(patch).length) await rapi.saveQueued(patch, ruleId);
       }
       if (accountId && type !== 'transfer') void save(KEYS.lastAccount(budgetId), accountId);
       onClose();

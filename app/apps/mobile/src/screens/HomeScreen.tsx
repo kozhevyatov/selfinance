@@ -134,7 +134,7 @@ export function HomeScreen() {
         ) : recent.error && !recent.items.length ? (
           <ErrorBox error={recent.error} onRetry={recent.reload} />
         ) : recent.items.length ? (
-          <TxDays items={recent.items} l={l} today={today} onOpen={(tx) => nav.openTx({ tx })} />
+          <TxDays items={recent.items.slice(0, 8)} l={l} today={today} onOpen={(tx) => nav.openTx({ tx })} pendingIds={recent.pendingIds} />
         ) : (
           <View style={{ alignItems: 'center', gap: 12, paddingVertical: 12 }}>
             <T tone="muted">Здесь появятся ваши доходы и расходы.</T>

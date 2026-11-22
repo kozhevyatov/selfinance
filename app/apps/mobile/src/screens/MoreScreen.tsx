@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { CalendarClock, Check, ExternalLink, LogOut, Repeat, Server, Settings, Tag, Users, Wallet } from 'lucide-react-native';
 import { formatPhone, type Meta } from '@selfinance/shared';
 import { get } from '../api';
+import { pendingNote } from '../offline';
 import { Divider, MenuRow } from '../kit';
 import { useNav, type Route } from '../nav';
 import { useQuery } from '../query';
@@ -88,14 +89,14 @@ export function MoreScreen() {
           icon={<LogOut size={19} color={t.danger} />}
           title="Выйти"
           danger
-          onPress={() => confirm('Выйти из аккаунта?', undefined, () => void signOut())}
+          onPress={() => confirm('Выйти из аккаунта?', pendingNote(), () => void signOut())}
         />
         <Divider />
         <MenuRow
           icon={<Server size={19} color={t.danger} />}
           title="Сменить сервер"
           danger
-          onPress={() => confirm('Отключиться от сервера?', 'Нужно будет снова ввести адрес и войти.', () => void disconnect())}
+          onPress={() => confirm('Отключиться от сервера?', ['Нужно будет снова ввести адрес и войти.', pendingNote()].filter(Boolean).join(' '), () => void disconnect())}
         />
       </Card>
     </ScrollView>

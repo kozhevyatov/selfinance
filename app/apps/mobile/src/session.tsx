@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { setCurrentCurrency, type AuthResponse, type Budget, type User } from '@selfinance/shared';
-import { ApiError, get, getRefreshToken, initApi, post, setLogoutHandler, setServer, setTokens } from './api';
-import { clearCache, invalidateAll, useQuery } from './query';
+import { ApiError, get, getRefreshToken, getServer, initApi, post, setLogoutHandler, setServer, setTokens } from './api';
+import { hash } from './disk';
+import { forgetQueueOwner, restoreQueue, startSync } from './offline';
+import { clearCache, invalidateAll, restoreCache, useQuery } from './query';
 import { KEYS, load, save } from './storage';
 
 interface Session {
@@ -19,6 +21,9 @@ interface Session {
 
 const Ctx = createContext<Session | null>(null);
 
+/** Свои сохранённые данные для каждого сервера и пользователя. */
+const ownerKey = (server: string, userId: string) => hash(`${server}|${userId}`);
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [booting, setBooting] = useState(true);
   const [server, setServerState] = useState<string | null>(null);
@@ -32,18 +37,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const reset = useCallback(async () => {
     await setTokens(null);
     setUser(null);
-    clearCache();
+    // сохранённые данные удаляем; неотправленные изменения остаются и уйдут после повторного входа
+    clearCache(true);
+    forgetQueueOwner();
   }, [setUser]);
 
   // запуск: адрес сервера, токены и пользователь с прошлого раза — открываемся без ожидания сети
   useEffect(() => {
     setLogoutHandler(() => void reset());
     (async () => {
+      startSync();
       const { server: s, signedIn } = await initApi();
       setServerState(s);
       if (s && signedIn) {
         const cached = await load<User>(KEYS.user);
-        if (cached) setUserState(cached);
+        if (cached) {
+          // данные с прошлого раза — приложение открывается и без интернета
+          await restoreCache(ownerKey(s, cached.id));
+          await restoreQueue(ownerKey(s, cached.id), cached.id);
+          setUserState(cached);
+        }
         try {
           setUser(await get<User>('/auth/me'));
         } catch (e) {
@@ -80,6 +93,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (auth: AuthResponse) => {
       await setTokens(auth);
       clearCache();
+      await restoreCache(ownerKey(getServer(), auth.user.id));
+      await restoreQueue(ownerKey(getServer(), auth.user.id), auth.user.id);
       setUser(auth.user);
     },
     [setUser],

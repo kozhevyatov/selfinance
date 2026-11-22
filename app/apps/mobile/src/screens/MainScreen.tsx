@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BackHandler, Platform, Pressable, View } from 'react-native';
+import { Alert, BackHandler, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChartColumn, House, List, Menu, Plus, type LucideIcon } from 'lucide-react-native';
+import { ChartColumn, CloudOff, CloudUpload, House, List, Menu, Plus, type LucideIcon } from 'lucide-react-native';
+import { isOnline } from '../api';
+import { plural } from '../format';
+import { flush, takeFailures, useQueue } from '../offline';
 import { NavCtx, type Nav, type Route, type Tab, type TxSheetOptions } from '../nav';
 import { useBudget } from '../session';
 import { useTheme } from '../theme';
@@ -68,6 +71,7 @@ export function MainScreen() {
   return (
     <NavCtx.Provider value={nav}>
       <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
+        <OfflineBar />
         {/* вкладки остаются смонтированными — при переключении не теряются прокрутка и фильтры */}
         <Pane visible={!top && tab === 'home'}>
           <HomeScreen />
@@ -167,6 +171,42 @@ function TabBtn({ icon: I, label, active, onPress }: { icon: LucideIcon; label: 
     <Pressable onPress={onPress} style={{ flex: 1, alignItems: 'center', gap: 2, minHeight: 48, justifyContent: 'center' }}>
       <I size={24} color={color} strokeWidth={active ? 2.2 : 1.8} />
       <T size={11} style={{ color }} weight={active ? '600' : '400'} numberOfLines={1}>{label}</T>
+    </Pressable>
+  );
+}
+
+/** Плашка: нет связи / изменения ждут отправки. Сообщает, если сервер что-то не принял. */
+function OfflineBar() {
+  const t = useTheme();
+  const { pending, flushing } = useQueue();
+  const online = isOnline();
+
+  useEffect(() => {
+    const f = takeFailures();
+    if (f.length) {
+      Alert.alert(
+        'Не все изменения удалось отправить',
+        f.map((x) => `${x.title}: ${x.message}`).join('\n'),
+      );
+    }
+  });
+
+  if (online && !pending) return null;
+  const text = !online
+    ? pending
+      ? `Нет связи · ${pending} ${plural(pending, 'изменение ждёт', 'изменения ждут', 'изменений ждут')} отправки`
+      : 'Нет связи — показаны сохранённые данные'
+    : flushing
+      ? `Отправляю изменения: ${pending}`
+      : `${pending} ${plural(pending, 'изменение ждёт', 'изменения ждут', 'изменений ждут')} отправки`;
+  const Icon = online ? CloudUpload : CloudOff;
+  return (
+    <Pressable
+      onPress={() => void flush()}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: t.creditSoft }}
+    >
+      <Icon size={16} color={t.credit} />
+      <T size={13} weight="600" tone="credit" style={{ flex: 1 }} numberOfLines={1}>{text}</T>
     </Pressable>
   );
 }

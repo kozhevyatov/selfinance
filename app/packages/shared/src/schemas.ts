@@ -167,6 +167,8 @@ export const limitSettingsSchema = z.object({ includeRecurring: z.boolean() });
 /* ---------- операции ---------- */
 
 export const txCreateSchema = z.object({
+  /** id задаёт приложение (UUID): повторная отправка после обрыва связи не создаёт дубль */
+  id: z.string().uuid().optional(),
   type: z.enum(txTypes),
   amount: z.number().int(), // копейки; для adjustment — со знаком, для остальных > 0
   date: isoDate,
@@ -179,7 +181,7 @@ export const txCreateSchema = z.object({
   plannedId: optId, // покупка по запланированному расходу (только при создании)
 });
 export type TxCreateInput = z.infer<typeof txCreateSchema>;
-export const txUpdateSchema = txCreateSchema.partial();
+export const txUpdateSchema = txCreateSchema.omit({ id: true }).partial();
 
 export const txListQuerySchema = z.object({
   from: isoDate.optional(),
