@@ -21,8 +21,8 @@
 cd app/apps/mobile
 npm install
 npx expo install --fix     # подогнать версии пакетов под SDK
-eas init                   # создать проект на expo.dev (owner nskarl), запишет projectId в app.json
-eas update:configure       # включить обновления «по воздуху» (запишет updates.url)
+npx eas-cli@latest init                   # создать проект на expo.dev (owner nskarl), запишет projectId в app.json
+npx eas-cli@latest update:configure       # включить обновления «по воздуху» (запишет updates.url)
 ```
 
 ## Сборка

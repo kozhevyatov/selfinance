@@ -7,11 +7,11 @@
     "start": "expo start",
     "doctor": "npx expo-doctor",
     "typecheck": "tsc --noEmit -p .",
-    "build:apk": "eas build -p android --profile production",
-    "build:ios": "eas build -p ios --profile production",
-    "build:ios:preview": "eas build -p ios --profile preview",
-    "submit:ios": "eas submit -p ios --latest",
-    "update": "eas update --channel production"
+    "build:apk": "npx eas-cli@latest build -p android --profile production",
+    "build:ios": "npx eas-cli@latest build -p ios --profile production",
+    "build:ios:preview": "npx eas-cli@latest build -p ios --profile preview",
+    "submit:ios": "npx eas-cli@latest submit -p ios --latest",
+    "update": "npx eas-cli@latest update --channel production"
   },
   "dependencies": {
     "expo": "~58.0.26",
@@ -26,7 +26,7 @@
     "react": "19.3.0",
     "react-native": "0.88.1",
     "react-native-safe-area-context": "~5.11.1",
-    "react-native-svg": "*",
+    "react-native-svg": "15.16.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
