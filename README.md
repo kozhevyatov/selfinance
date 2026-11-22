@@ -194,6 +194,10 @@ docker exec selfinance-mariadb mariadb-dump -u root -p selfinance > selfinance.s
 
 PWA (установка на главный экран) работает только по HTTPS. Поставьте перед Selfinance любой обратный прокси с сертификатом, например Nginx Proxy Manager, Caddy или Traefik, и направьте его на порт `1444`.
 
+## Мобильное приложение
+
+Нативное приложение для Android и iOS (Expo) лежит в `app/apps/mobile`. При первом запуске оно спрашивает адрес вашего сервера и работает с ним через API. Сейчас в приложении есть главная, лента операций и добавление и редактирование операций, остальные разделы открываются в веб-версии. Сборка описана в [app/apps/mobile/README.md](app/apps/mobile/README.md).
+
 ## Сборка из исходников
 
 ```bash
@@ -210,6 +214,7 @@ selfinance/
 │   ├── Dockerfile
 │   ├── apps/api         бэкенд: Fastify + Kysely (SQLite / MySQL / MariaDB)
 │   ├── apps/web         фронтенд: React + Vite
+│   ├── apps/mobile      приложение для Android и iOS: Expo (React Native)
 │   └── packages/shared  общие типы, схемы (zod), форматирование денег и дат
 ├── examples/            примеры docker-compose
 ├── docs/                скриншоты для README
@@ -232,4 +237,4 @@ npm run dev:web     # Vite на :5173, проксирует /api на :1444
 
 ## Планы
 
-- Мобильные приложения для Android и iOS.
+- Мобильные приложения: статистика, счета, планы, регулярные платежи, лимиты и push-напоминания.

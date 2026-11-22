@@ -1,0 +1,36 @@
+{
+  "name": "selfinance-mobile",
+  "version": "1.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "doctor": "npx expo-doctor",
+    "typecheck": "tsc --noEmit -p .",
+    "build:apk": "eas build -p android --profile production",
+    "build:ios": "eas build -p ios --profile production",
+    "build:ios:preview": "eas build -p ios --profile preview",
+    "submit:ios": "eas submit -p ios --latest",
+    "update": "eas update --channel production"
+  },
+  "dependencies": {
+    "expo": "~58.0.26",
+    "expo-build-properties": "~58.0.12",
+    "expo-constants": "~58.0.16",
+    "expo-secure-store": "~58.0.3",
+    "expo-splash-screen": "~58.0.14",
+    "expo-status-bar": "~58.0.5",
+    "expo-system-ui": "*",
+    "expo-updates": "~58.0.22",
+    "lucide-react-native": "*",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-svg": "*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/react": "*",
+    "typescript": "~6.0.3"
+  }
+}

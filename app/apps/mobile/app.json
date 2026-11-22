@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Selfinance",
+    "slug": "selfinance",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "selfinance",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F2F3F5",
+    "ios": {
+      "bundleIdentifier": "ru.nskarl.selfinance",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
+        "NSLocalNetworkUsageDescription": "Selfinance подключается к вашему серверу в домашней сети."
+      }
+    },
+    "android": {
+      "package": "ru.nskarl.selfinance",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4338CA"
+      },
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "backgroundColor": "#F2F3F5",
+          "dark": {
+            "backgroundColor": "#0F1115"
+          }
+        }
+      ],
+      "expo-secure-store",
+      "expo-status-bar"
+    ],
+    "owner": "nskarl",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}
