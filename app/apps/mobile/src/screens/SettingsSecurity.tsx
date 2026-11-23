@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Linking, Modal } from 'react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { Divider, Hint, Select, SwitchRow } from '../kit';
-import { bioLabel, biometricKind, LOCK_TIMEOUTS, PinPad, useLock, type BioKind } from '../lock';
+import { askBiometric, bioLabel, biometricKind, LOCK_TIMEOUTS, PinPad, useLock, type BioKind } from '../lock';
 import { askPermission, loadNotify, NOTIFY_HOURS, saveNotify, type NotifySettings } from '../notify';
 import { invalidateAll } from '../query';
 import { Button, T } from '../ui';
@@ -21,8 +20,7 @@ export function SecuritySection() {
   const toggleBio = async (on: boolean) => {
     if (on) {
       // проверяем сразу, что биометрия работает и это владелец
-      const r = await LocalAuthentication.authenticateAsync({ promptMessage: `Включить вход по ${bioLabel(bio)}`, cancelLabel: 'Отмена', disableDeviceFallback: true }).catch(() => null);
-      if (!r?.success) return;
+      if (!(await askBiometric(`Включить вход по ${bioLabel(bio)}`, 'Отмена'))) return;
     }
     await update({ biometric: on });
   };

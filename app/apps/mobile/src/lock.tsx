@@ -46,16 +46,29 @@ export async function biometricKind(): Promise<BioKind> {
 
 export const bioLabel = (k: BioKind) => (k === 'face' ? 'Face ID' : 'отпечаток пальца');
 
-async function askBiometric(): Promise<boolean> {
+/**
+ * Окно Face ID переводит приложение в состояние «неактивно» и обратно.
+ * Пока идёт проверка (и чуть после), эти переходы не считаются сворачиванием.
+ */
+let authBusy = false;
+let authEndedAt = 0;
+const authQuiet = () => authBusy || Date.now() - authEndedAt < 1000;
+
+export async function askBiometric(promptMessage = 'Вход в Selfinance', cancelLabel = 'Ввести ПИН-код'): Promise<boolean> {
+  if (authBusy) return false; // уже открыто окно проверки — второе не запускаем
+  authBusy = true;
   try {
     const r = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Вход в Selfinance',
-      cancelLabel: 'Ввести ПИН-код',
+      promptMessage,
+      cancelLabel,
       disableDeviceFallback: true, // запасной вариант — наш ПИН, а не код телефона
     });
     return r.success;
   } catch {
     return false;
+  } finally {
+    authBusy = false;
+    authEndedAt = Date.now();
   }
 }
 
@@ -94,6 +107,8 @@ export function LockProvider({ children, onTooManyTries }: { children: ReactNode
   const bgAt = useRef<number | null>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
 
   useEffect(() => {
     (async () => {
@@ -112,9 +127,10 @@ export function LockProvider({ children, onTooManyTries }: { children: ReactNode
       if (!s.enabled) return;
       if (st === 'background') {
         if (bgAt.current === null) bgAt.current = Date.now();
-        setCovered(true);
+        if (!lockedRef.current) setCovered(true);
       } else if (st === 'inactive') {
-        setCovered(true);
+        // окно Face ID, центр уведомлений и т. п. — не сворачивание
+        if (!lockedRef.current && !authQuiet()) setCovered(true);
       } else if (st === 'active') {
         setCovered(false);
         if (bgAt.current !== null && Date.now() - bgAt.current >= s.timeoutMin * 60_000) setLocked(true);
@@ -147,20 +163,19 @@ export function LockProvider({ children, onTooManyTries }: { children: ReactNode
     [settings, locked, update],
   );
 
+  const unlock = useCallback(() => setLocked(false), []);
+  const tooMany = useCallback(() => {
+    setLocked(false);
+    void clearLock().then(onTooManyTries);
+  }, [onTooManyTries]);
+
   if (!ready) return null;
   return (
     <LockCtx.Provider value={value}>
       {children}
       <Modal visible={locked || covered} animationType="none" transparent={false} statusBarTranslucent onRequestClose={() => undefined}>
         {locked ? (
-          <LockScreen
-            biometric={settings.biometric}
-            onUnlock={() => setLocked(false)}
-            onTooManyTries={() => {
-              setLocked(false);
-              void clearLock().then(onTooManyTries);
-            }}
-          />
+          <LockScreen biometric={settings.biometric} onUnlock={unlock} onTooManyTries={tooMany} />
         ) : (
           <Cover />
         )}
@@ -184,12 +199,16 @@ function LockScreen({ biometric, onUnlock, onTooManyTries }: { biometric: boolea
   const [tries, setTries] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  const onUnlockRef = useRef(onUnlock);
+  onUnlockRef.current = onUnlock;
   const tryBio = useCallback(async () => {
-    if (await askBiometric()) onUnlock();
-  }, [onUnlock]);
+    if (await askBiometric()) onUnlockRef.current();
+  }, []);
 
+  const autoAsked = useRef(false);
   useEffect(() => {
-    if (!biometric) return;
+    if (!biometric || autoAsked.current) return;
+    autoAsked.current = true;
     void biometricKind().then((k) => {
       setKind(k);
       if (k) void tryBio();
