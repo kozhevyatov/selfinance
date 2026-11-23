@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
-import { Coins, KeyRound, LogOut, Palette, Shield, Smartphone, User as UserIcon, X } from 'lucide-react-native';
+import { Alert, Platform, ScrollView, View } from 'react-native';
+import { Bell, Coins, KeyRound, Lock, LogOut, Palette, Shield, Smartphone, User as UserIcon, X } from 'lucide-react-native';
 import { formatPhone, type User, type WeekStart } from '@selfinance/shared';
 import { ApiError, patch } from '../api';
 import { budgetsApi, revokeSession, useSessions } from '../data';
@@ -11,6 +11,7 @@ import { Divider, Hint, MenuRow, PageHeader, Select } from '../kit';
 import { useNav, type SettingsKey } from '../nav';
 import { useBudget, useSession } from '../session';
 import { useTheme, useThemePref } from '../theme';
+import { NotificationsSection, SecuritySection } from './SettingsSecurity';
 import { Button, Card, Field, Segmented, T } from '../ui';
 
 const SECTIONS: { key: SettingsKey; label: string; hint: string; icon: typeof UserIcon }[] = [
@@ -18,6 +19,8 @@ const SECTIONS: { key: SettingsKey; label: string; hint: string; icon: typeof Us
   { key: 'password', label: 'Пароль', hint: 'Сменить пароль входа', icon: KeyRound },
   { key: 'currency', label: 'Валюта', hint: 'Валюта текущего бюджета', icon: Coins },
   { key: 'theme', label: 'Оформление', hint: 'Светлая, тёмная или как в системе', icon: Palette },
+  { key: 'security', label: Platform.OS === 'ios' ? 'ПИН-код и Face ID' : 'ПИН-код и отпечаток', hint: 'Защита входа в приложение', icon: Lock },
+  { key: 'notifications', label: 'Напоминания', hint: 'О регулярных платежах и лимите месяца', icon: Bell },
   { key: 'devices', label: 'Устройства', hint: 'Где выполнен вход, завершить сеансы', icon: Smartphone },
 ];
 
@@ -74,6 +77,8 @@ export function SettingsSectionScreen({ section }: { section: SettingsKey }) {
     password: <PasswordSection />,
     currency: <CurrencySection />,
     theme: <ThemeSection />,
+    security: <SecuritySection />,
+    notifications: <NotificationsSection />,
     devices: <SessionsSection />,
   }[section];
   return (

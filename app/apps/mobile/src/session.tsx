@@ -3,7 +3,10 @@ import { AppState } from 'react-native';
 import { setCurrentCurrency, type AuthResponse, type Budget, type User } from '@selfinance/shared';
 import { ApiError, get, getRefreshToken, getServer, initApi, post, setLogoutHandler, setServer, setTokens } from './api';
 import { hash } from './disk';
+import { clearLock } from './lock';
+import { clearNotifications } from './notify';
 import { forgetQueueOwner, restoreQueue, startSync } from './offline';
+import { clearQuickActions } from './quick';
 import { clearCache, invalidateAll, restoreCache, useQuery } from './query';
 import { KEYS, load, save } from './storage';
 
@@ -40,6 +43,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // сохранённые данные удаляем; неотправленные изменения остаются и уйдут после повторного входа
     clearCache(true);
     forgetQueueOwner();
+    // ПИН, напоминания и быстрые действия принадлежат вошедшему пользователю
+    await clearLock();
+    await clearNotifications();
+    clearQuickActions();
   }, [setUser]);
 
   // запуск: адрес сервера, токены и пользователь с прошлого раза — открываемся без ожидания сети

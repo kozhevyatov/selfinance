@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { Planned, Recurring, Transaction } from '@selfinance/shared';
 
-export type SettingsKey = 'profile' | 'password' | 'currency' | 'theme' | 'devices';
+export type SettingsKey = 'profile' | 'password' | 'currency' | 'theme' | 'security' | 'notifications' | 'devices';
 
 /** Экраны, которые открываются поверх вкладок, со стрелкой «назад». */
 export type Route =

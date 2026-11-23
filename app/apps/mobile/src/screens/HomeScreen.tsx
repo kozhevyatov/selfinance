@@ -118,7 +118,7 @@ export function HomeScreen() {
         {summary.data ? (
           <>
             <MonthTotals s={summary.data} label={label} />
-            <DaysChart s={summary.data} today={today} kind="both" />
+            <DaysChart s={summary.data} today={today} kind="expense" />
           </>
         ) : summary.error ? (
           <ErrorBox error={summary.error} onRetry={summary.refetch} />

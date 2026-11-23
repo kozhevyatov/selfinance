@@ -28,5 +28,9 @@ export const KEYS = {
   user: 'sf.user',
   budget: 'sf.budget',
   theme: 'sf.theme',
+  lock: 'sf.lock',
+  pin: 'sf.pin',
+  notify: 'sf.notify',
+  limitFired: 'sf.limitFired',
   lastAccount: (budgetId: string) => `sf.lastAccount.${budgetId}`,
 };

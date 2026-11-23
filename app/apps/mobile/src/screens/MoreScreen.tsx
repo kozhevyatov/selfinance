@@ -9,6 +9,7 @@ import { useNav, type Route } from '../nav';
 import { useQuery } from '../query';
 import { useBudget, useSession } from '../session';
 import { useTheme } from '../theme';
+import { UpdateInfo } from '../UpdateInfo';
 import { Card, SectionTitle, T } from '../ui';
 
 export function MoreScreen() {
@@ -99,6 +100,8 @@ export function MoreScreen() {
           onPress={() => confirm('Отключиться от сервера?', ['Нужно будет снова ввести адрес и войти.', pendingNote()].filter(Boolean).join(' '), () => void disconnect())}
         />
       </Card>
+
+      <UpdateInfo />
     </ScrollView>
   );
 }

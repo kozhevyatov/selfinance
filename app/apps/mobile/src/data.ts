@@ -23,10 +23,11 @@ import {
   type TxPage,
   type TxType,
   type UpcomingPayment,
+  type VersionInfo,
 } from '@selfinance/shared';
 import { api, del, get, patch, post } from './api';
 import { currentUserId, pendingTx, sendOrQueue, txFromBody, useQueue, uuidv7, type PendingTx } from './offline';
-import { invalidateAll, usePaged, useQuery } from './query';
+import { invalidateAll, setQueryData, usePaged, useQuery } from './query';
 import { useBudget } from './session';
 
 /* ---------- запросы ---------- */
@@ -107,6 +108,18 @@ export function useCandidates(budgetId: string, enabled: boolean) {
 
 export function useIncomingInvites(enabled: boolean) {
   return useQuery(enabled ? 'incoming-invites' : null, () => get<IncomingInvite[]>('/budget-invites'));
+}
+
+/** Версия сервера и есть ли новее (сервер сам кеширует проверку GitHub). */
+export function useVersion() {
+  return useQuery('version', () => get<VersionInfo>('/version'));
+}
+
+/** Проверить обновление прямо сейчас. */
+export async function checkVersion() {
+  const info = await get<VersionInfo>('/version', { force: 1 });
+  setQueryData('version', info);
+  return info;
 }
 
 export interface SessionInfo {

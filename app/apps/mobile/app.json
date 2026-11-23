@@ -2,7 +2,7 @@
   "expo": {
     "name": "Selfinance",
     "slug": "selfinance",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "selfinance",
@@ -10,7 +10,7 @@
     "backgroundColor": "#F2F3F5",
     "ios": {
       "bundleIdentifier": "ru.nskarl.selfinance",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
@@ -20,17 +20,22 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         },
-        "NSLocalNetworkUsageDescription": "Selfinance подключается к вашему серверу в домашней сети."
+        "NSLocalNetworkUsageDescription": "Selfinance подключается к вашему серверу в домашней сети.",
+        "NSFaceIDUsageDescription": "Selfinance использует Face ID для входа в приложение."
       }
     },
     "android": {
       "package": "ru.nskarl.selfinance",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4338CA"
       },
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "plugins": [
       [
@@ -53,7 +58,21 @@
         }
       ],
       "expo-secure-store",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Selfinance использует Face ID для входа в приложение."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#4338CA"
+        }
+      ],
+      "expo-quick-actions",
+      "@react-native-community/datetimepicker"
     ],
     "owner": "nskarl",
     "runtimeVersion": {

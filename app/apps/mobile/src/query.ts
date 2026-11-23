@@ -29,6 +29,18 @@ export function invalidateAll() {
   refetchers.forEach((fn) => fn());
 }
 
+/** Положить данные в кеш вручную (например, результат принудительной проверки). */
+export function setQueryData(key: string, data: unknown) {
+  const e = cache.get(key) ?? { stale: false, at: 0 };
+  e.data = data;
+  e.error = undefined;
+  e.at = Date.now();
+  e.stale = false;
+  cache.set(key, e);
+  schedulePersist();
+  notify(key);
+}
+
 /* ---------- сохранение на устройстве ---------- */
 
 const MAX_SIZE = 4_000_000; // ~4 МБ

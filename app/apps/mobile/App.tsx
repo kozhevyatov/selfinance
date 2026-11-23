@@ -3,6 +3,7 @@ import { useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { LockProvider } from './src/lock';
 import { ConnectScreen } from './src/screens/ConnectScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { MainScreen } from './src/screens/MainScreen';
@@ -56,22 +57,24 @@ function Root() {
   if (!server) return <ConnectScreen />;
   if (!user) return <LoginScreen />;
   return (
-    <BudgetProvider
-      key={user.id}
-      fallback={(error, retry) => (
-        <Center>
-          {error ? (
-            <>
-              <ErrorBox error={error} onRetry={retry} />
-              <Button title="Выйти" kind="ghost" onPress={() => void signOut()} />
-            </>
-          ) : (
-            <Spinner />
-          )}
-        </Center>
-      )}
-    >
-      <MainScreen />
-    </BudgetProvider>
+    <LockProvider key={user.id} onTooManyTries={() => void signOut()}>
+      <BudgetProvider
+        key={user.id}
+        fallback={(error, retry) => (
+          <Center>
+            {error ? (
+              <>
+                <ErrorBox error={error} onRetry={retry} />
+                <Button title="Выйти" kind="ghost" onPress={() => void signOut()} />
+              </>
+            ) : (
+              <Spinner />
+            )}
+          </Center>
+        )}
+      >
+        <MainScreen />
+      </BudgetProvider>
+    </LockProvider>
   );
 }

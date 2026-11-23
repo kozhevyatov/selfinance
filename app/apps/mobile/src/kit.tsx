@@ -11,8 +11,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react-native';
-import { addDays, dayTitle, shiftMonth } from '@selfinance/shared';
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { addDays, dayTitle } from '@selfinance/shared';
 import { radius, useTheme } from './theme';
 import { T } from './ui';
 
@@ -265,39 +266,82 @@ export function Divider() {
   return <View style={{ height: 1, backgroundColor: t.border, marginVertical: 4 }} />;
 }
 
-/* ---------- выбор даты стрелками: день и месяц ---------- */
+/* ---------- выбор даты: стрелки по дням и системный календарь по нажатию ---------- */
+
+const toDate = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d, 12);
+};
+const toIso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export function DateStepper({ date, today, onChange, min, max }: { date: string; today: string; onChange: (d: string) => void; min?: string; max?: string }) {
   const t = useTheme();
+  const [open, setOpen] = useState(false); // календарь на iOS раскрывается прямо под строкой
   const clamp = (d: string) => (min && d < min ? min : max && d > max ? max : d);
-  const shiftM = (n: number) => {
-    const day = Number(date.slice(8));
-    const m = shiftMonth(date.slice(0, 7), n);
-    const [y, mm] = m.split('-').map(Number);
-    const last = new Date(Date.UTC(y, mm, 0)).getUTCDate();
-    onChange(clamp(`${m}-${String(Math.min(day, last)).padStart(2, '0')}`));
+
+  const openCalendar = () => {
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: toDate(date),
+        mode: 'date',
+        minimumDate: min ? toDate(min) : undefined,
+        maximumDate: max ? toDate(max) : undefined,
+        onChange: (e: DateTimePickerEvent, d?: Date) => {
+          if (e.type === 'set' && d) onChange(clamp(toIso(d)));
+        },
+      });
+    } else setOpen((o) => !o);
   };
+
   const btn = (child: ReactNode, fn: () => void, off?: boolean) => (
-    <Pressable hitSlop={6} onPress={fn} disabled={off} style={{ padding: 8, opacity: off ? 0.3 : 1 }}>
+    <Pressable hitSlop={6} onPress={fn} disabled={off} style={{ padding: 10, opacity: off ? 0.3 : 1 }}>
       {child}
     </Pressable>
   );
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: t.input,
-        borderRadius: radius.item,
-        minHeight: 48,
-        paddingHorizontal: 2,
-      }}
-    >
-      {btn(<ChevronsLeft size={20} color={t.muted} />, () => shiftM(-1), !!min && date <= min)}
-      {btn(<ChevronLeft size={20} color={t.text} />, () => onChange(clamp(addDays(date, -1))), !!min && date <= min)}
-      <T weight="600" style={{ flex: 1, textAlign: 'center' }}>{dayTitle(date, today)}</T>
-      {btn(<ChevronRight size={20} color={t.text} />, () => onChange(clamp(addDays(date, 1))), !!max && date >= max)}
-      {btn(<ChevronsRight size={20} color={t.muted} />, () => shiftM(1), !!max && date >= max)}
+    <View style={{ gap: 6 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: t.input,
+          borderRadius: radius.item,
+          minHeight: 48,
+          paddingHorizontal: 2,
+        }}
+      >
+        {btn(<ChevronLeft size={20} color={t.text} />, () => onChange(clamp(addDays(date, -1))), !!min && date <= min)}
+        <Pressable
+          onPress={openCalendar}
+          accessibilityLabel="Выбрать дату в календаре"
+          style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, opacity: pressed ? 0.6 : 1 })}
+        >
+          <CalendarDays size={17} color={t.accent} />
+          <T weight="600" numberOfLines={1}>{dayTitle(date, today)}</T>
+        </Pressable>
+        {btn(<ChevronRight size={20} color={t.text} />, () => onChange(clamp(addDays(date, 1))), !!max && date >= max)}
+      </View>
+      {open && Platform.OS === 'ios' && (
+        <View style={{ backgroundColor: t.input, borderRadius: radius.item, overflow: 'hidden' }}>
+          <DateTimePicker
+            value={toDate(date)}
+            mode="date"
+            display="inline"
+            locale="ru-RU"
+            accentColor={t.accent}
+            themeVariant={t.dark ? 'dark' : 'light'}
+            minimumDate={min ? toDate(min) : undefined}
+            maximumDate={max ? toDate(max) : undefined}
+            onChange={(_e: DateTimePickerEvent, d?: Date) => {
+              if (d) {
+                onChange(clamp(toIso(d)));
+                setOpen(false);
+              }
+            }}
+          />
+        </View>
+      )}
     </View>
   );
 }

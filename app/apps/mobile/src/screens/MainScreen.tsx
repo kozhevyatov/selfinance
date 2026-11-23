@@ -1,14 +1,20 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { todayISO } from '@selfinance/shared';
 import { Alert, BackHandler, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChartColumn, CloudOff, CloudUpload, House, List, Menu, Plus, type LucideIcon } from 'lucide-react-native';
+import { ChartColumn, ChevronRight, CloudOff, CloudUpload, House, List, Menu, Plus, Users, type LucideIcon } from 'lucide-react-native';
 import { isOnline } from '../api';
 import { plural } from '../format';
+import { useIncomingInvites, useLimits, useRecurring } from '../data';
+import { useLock } from '../lock';
+import { checkLimit, onPaymentTap, schedulePayments } from '../notify';
+import { onQuickAction, setupQuickActions, type QuickKind } from '../quick';
 import { flush, takeFailures, useQueue } from '../offline';
 import { NavCtx, type Nav, type Route, type Tab, type TxSheetOptions } from '../nav';
-import { useBudget } from '../session';
+import { useBudget, useSession } from '../session';
 import { useTheme } from '../theme';
 import { T } from '../ui';
+import { useUpdateBadge } from '../UpdateInfo';
 import { AccountsScreen } from './AccountsScreen';
 import { AdminScreen } from './AdminScreen';
 import { BudgetsScreen } from './BudgetsScreen';
@@ -27,6 +33,8 @@ export function MainScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { canEdit } = useBudget();
+  const updateBadge = useUpdateBadge();
+  const { locked } = useLock();
   const [tab, setTabState] = useState<Tab>('home');
   const [stack, setStack] = useState<Route[]>([]);
   const [sheet, setSheet] = useState<TxSheetOptions | null>(null);
@@ -64,6 +72,8 @@ export function MainScreen() {
     return () => sub.remove();
   }, [stack.length, tab, nav]);
 
+  useSystemHooks(nav, locked, canEdit);
+
   const closeSheet = useCallback(() => setSheet(null), []);
   const top = stack[stack.length - 1];
   const isCross = !!sheet && (!!sheet.cross || !!sheet.tx?.linkedBudget);
@@ -72,6 +82,7 @@ export function MainScreen() {
     <NavCtx.Provider value={nav}>
       <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
         <OfflineBar />
+        {top?.name !== 'budgets' && <InviteBar onPress={() => nav.push({ name: 'budgets' })} />}
         {/* вкладки остаются смонтированными — при переключении не теряются прокрутка и фильтры */}
         <Pane visible={!top && tab === 'home'}>
           <HomeScreen />
@@ -126,7 +137,7 @@ export function MainScreen() {
             )}
           </View>
           <TabBtn icon={ChartColumn} label="Статистика" active={!top && tab === 'stats'} onPress={() => nav.setTab('stats')} />
-          <TabBtn icon={Menu} label="Ещё" active={!!top || tab === 'more'} onPress={() => nav.setTab('more')} />
+          <TabBtn icon={Menu} label="Ещё" active={!!top || tab === 'more'} dot={updateBadge} onPress={() => nav.setTab('more')} />
         </View>
 
         <TxSheet opts={isCross ? null : sheet} onClose={closeSheet} onCross={() => {
@@ -164,12 +175,20 @@ function Pane({ visible, children }: { visible: boolean; children: ReactNode }) 
   return <View style={{ flex: 1, display: visible ? 'flex' : 'none' }}>{children}</View>;
 }
 
-function TabBtn({ icon: I, label, active, onPress }: { icon: LucideIcon; label: string; active: boolean; onPress: () => void }) {
+function TabBtn({ icon: I, label, active, onPress, dot }: { icon: LucideIcon; label: string; active: boolean; onPress: () => void; dot?: boolean }) {
   const t = useTheme();
   const color = active ? t.accent : t.muted;
   return (
     <Pressable onPress={onPress} style={{ flex: 1, alignItems: 'center', gap: 2, minHeight: 48, justifyContent: 'center' }}>
-      <I size={24} color={color} strokeWidth={active ? 2.2 : 1.8} />
+      <View>
+        <I size={24} color={color} strokeWidth={active ? 2.2 : 1.8} />
+        {dot && (
+          <View
+            accessibilityLabel="Есть обновление сервера"
+            style={{ position: 'absolute', top: -2, right: -4, width: 9, height: 9, borderRadius: 5, backgroundColor: t.danger, borderWidth: 1.5, borderColor: t.card }}
+          />
+        )}
+      </View>
       <T size={11} style={{ color }} weight={active ? '600' : '400'} numberOfLines={1}>{label}</T>
     </Pressable>
   );
@@ -209,4 +228,75 @@ function OfflineBar() {
       <T size={13} weight="600" tone="credit" style={{ flex: 1 }} numberOfLines={1}>{text}</T>
     </Pressable>
   );
+}
+
+/** Напоминание о приглашении в общий бюджет — на всех экранах, кроме «Бюджетов». */
+function InviteBar({ onPress }: { onPress: () => void }) {
+  const t = useTheme();
+  const { user } = useSession();
+  const { data = [] } = useIncomingInvites(!!user?.canShare);
+  if (!data.length) return null;
+  const text = data.length === 1 ? `Вас пригласили в бюджет «${data[0].budgetName}»` : `Приглашений в общие бюджеты: ${data.length}`;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 9, backgroundColor: t.accentSoft, opacity: pressed ? 0.7 : 1 })}
+    >
+      <Users size={16} color={t.accent} />
+      <T size={13} weight="600" tone="accent" style={{ flex: 1 }} numberOfLines={1}>{text}</T>
+      <T size={13} weight="700" tone="accent">Ответить</T>
+      <ChevronRight size={16} color={t.accent} />
+    </Pressable>
+  );
+}
+
+/**
+ * Связь с системой: быстрые действия на иконке, напоминания о платежах и лимите.
+ * Пока приложение заблокировано ПИН-кодом, действие ждёт разблокировки.
+ */
+function useSystemHooks(nav: Nav, locked: boolean, canEdit: boolean) {
+  const { user } = useSession();
+  const { budget, budgets, budgetId } = useBudget();
+  const month = todayISO(user?.timezone).slice(0, 7);
+  const recurring = useRecurring();
+  const limits = useLimits(month);
+  const [pending, setPending] = useState<{ quick?: QuickKind; recurringId?: string } | null>(null);
+  const rulesRef = useRef(recurring.data);
+  rulesRef.current = recurring.data;
+
+  useEffect(() => {
+    setupQuickActions();
+    const offQuick = onQuickAction((quick) => setPending({ quick }));
+    const offTap = onPaymentTap((recurringId) => setPending({ recurringId }));
+    return () => {
+      offQuick();
+      offTap();
+    };
+  }, []);
+
+  // выполнить отложенное действие, когда приложение разблокировано (и данные правила на месте)
+  useEffect(() => {
+    if (!pending || locked) return;
+    if (pending.quick) {
+      setPending(null);
+      if (canEdit) nav.openTx({ type: pending.quick });
+      return;
+    }
+    if (pending.recurringId) {
+      const rule = rulesRef.current?.find((r) => r.id === pending.recurringId);
+      if (!rule && recurring.loading) return; // подождём список правил
+      setPending(null);
+      if (rule && canEdit) nav.openTx({ recurring: rule });
+      else nav.push({ name: 'recurring' });
+    }
+  }, [pending, locked, canEdit, nav, recurring.loading, recurring.data]);
+
+  // расписание напоминаний пересобирается при каждом обновлении данных
+  useEffect(() => {
+    if (recurring.data) void schedulePayments(recurring.data, budgets.length > 1 ? budget.name : null);
+  }, [recurring.data, budget.name, budgets.length]);
+
+  useEffect(() => {
+    void checkLimit(limits.data, budgetId);
+  }, [limits.data, budgetId]);
 }
