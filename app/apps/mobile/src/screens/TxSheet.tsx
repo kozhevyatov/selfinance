@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { Trash2 } from 'lucide-react-native';
+import { ChevronDown, Trash2 } from 'lucide-react-native';
 import {
   addDays,
   amountToInput,
@@ -117,6 +117,12 @@ function TxForm({ opts, onClose, onCross }: { opts: TxSheetOptions; onClose: () 
   const subs = selectedTop
     ? l.categories.filter((c) => c.parentId === selectedTop.id && (!c.isArchived || c.id === categoryId)).sort((a, b) => a.sort - b.sort)
     : [];
+
+  const subCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of l.categories) if (c.parentId && !c.isArchived) m.set(c.parentId, (m.get(c.parentId) ?? 0) + 1);
+    return m;
+  }, [l.categories]);
 
   const switchType = (next: TxType) => {
     setType(next);
@@ -274,42 +280,79 @@ function TxForm({ opts, onClose, onCross }: { opts: TxSheetOptions; onClose: () 
       {(type === 'income' || type === 'expense') && (
         <View style={{ gap: 10 }}>
           <T tone="muted" size={13}>Категория{fields.categoryId ? ` — ${fields.categoryId}` : ''}</T>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 12 }}>
-            {tops.map((c) => {
-              const on = selectedTop?.id === c.id;
+          <View style={{ rowGap: 12 }}>
+            {/* категории рядами по CAT_COLS; подкатегории раскрываются сразу под рядом выбранной категории */}
+            {chunk(tops, CAT_COLS).map((row, ri) => {
+              const col = selectedTop ? row.findIndex((c) => c.id === selectedTop.id) : -1;
               return (
-                <Pressable
-                  key={c.id}
-                  onPress={() => setCategoryId(on && selected?.id === c.id ? null : c.id)}
-                  style={{ width: '25%', alignItems: 'center', gap: 6 }}
-                >
-                  <View style={{ borderRadius: 26, borderWidth: 2, borderColor: on ? c.color || t.accent : 'transparent', padding: 2 }}>
-                    <CatIcon name={c.icon} color={c.color} size={44} />
+                <View key={ri} style={{ gap: 10 }}>
+                  <View style={{ flexDirection: 'row' }}>
+                    {row.map((c) => {
+                      const on = selectedTop?.id === c.id;
+                      const hasSubs = (subCount.get(c.id) ?? 0) > 0;
+                      const tint = c.color || t.accent;
+                      return (
+                        <Pressable
+                          key={c.id}
+                          onPress={() => setCategoryId(on && selected?.id === c.id ? null : c.id)}
+                          style={{ width: `${100 / CAT_COLS}%`, alignItems: 'center', gap: 6 }}
+                        >
+                          <View style={{ borderRadius: 26, borderWidth: 2, borderColor: on ? tint : 'transparent', padding: 2 }}>
+                            <CatIcon name={c.icon} color={c.color} size={44} />
+                            {hasSubs && (
+                              <View
+                                style={{
+                                  position: 'absolute',
+                                  right: -4,
+                                  bottom: -4,
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 10,
+                                  backgroundColor: on ? tint : t.card,
+                                  borderWidth: 1.5,
+                                  borderColor: on ? t.card : t.border,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <ChevronDown
+                                  size={13}
+                                  strokeWidth={2.6}
+                                  color={on ? '#fff' : t.muted}
+                                  style={on && subs.length ? { transform: [{ rotate: '180deg' }] } : undefined}
+                                />
+                              </View>
+                            )}
+                          </View>
+                          <T size={12} numberOfLines={2} style={{ textAlign: 'center', paddingHorizontal: 2 }} weight={on ? '600' : '400'}>
+                            {c.name}
+                          </T>
+                        </Pressable>
+                      );
+                    })}
                   </View>
-                  <T size={12} numberOfLines={2} style={{ textAlign: 'center', paddingHorizontal: 2 }} weight={on ? '600' : '400'}>
-                    {c.name}
-                  </T>
-                </Pressable>
+                  {col >= 0 && subs.length > 0 && selectedTop && (
+                    <SubsPanel
+                      color={selectedTop.color || t.accent}
+                      arrowLeft={`${((col + 0.5) / CAT_COLS) * 100}%`}
+                      title={`${selectedTop.name}: подкатегория`}
+                    >
+                      {subs.map((s) => (
+                        <Chip
+                          key={s.id}
+                          label={s.name}
+                          active={selected?.id === s.id}
+                          onPress={() => setCategoryId(selected?.id === s.id ? selectedTop.id : s.id)}
+                          color={selectedTop.color ?? undefined}
+                        />
+                      ))}
+                    </SubsPanel>
+                  )}
+                </View>
               );
             })}
             {!tops.length && <T tone="faint">Категорий нет — операция попадёт в «Без категории»</T>}
           </View>
-          {subs.length > 0 && selectedTop && (
-            <View style={{ gap: 6 }}>
-              <T size={12} tone="muted">{selectedTop.name}: подкатегория</T>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} keyboardShouldPersistTaps="handled">
-                {subs.map((s) => (
-                  <Chip
-                    key={s.id}
-                    label={s.name}
-                    active={selected?.id === s.id}
-                    onPress={() => setCategoryId(selected?.id === s.id ? selectedTop.id : s.id)}
-                    color={selectedTop.color ?? undefined}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          )}
         </View>
       )}
 
@@ -401,6 +444,59 @@ function AccountChips({ label, accounts, value, onChange }: { label: string; acc
           />
         ))}
       </ScrollView>
+    </View>
+  );
+}
+
+const CAT_COLS = 4;
+
+function chunk<T>(arr: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+}
+
+/** полупрозрачный цвет из #rrggbb (для подложки панели подкатегорий) */
+function alpha(hex: string, a: number) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const v = parseInt(m[1], 16);
+  return `rgba(${(v >> 16) & 255},${(v >> 8) & 255},${v & 255},${a})`;
+}
+
+/** блок подкатегорий со стрелкой-«хвостиком», указывающей на выбранную категорию */
+function SubsPanel({ color, arrowLeft, title, children }: { color: string; arrowLeft: `${number}%`; title: string; children: ReactNode }) {
+  const t = useTheme();
+  const bg = t.card;
+  const tint = alpha(color, t.dark ? 0.16 : 0.1);
+  const border = alpha(color, 0.4);
+  return (
+    <View style={{ marginTop: 2 }}>
+      <View
+        style={{
+          position: 'absolute',
+          top: -7,
+          left: arrowLeft,
+          marginLeft: -7,
+          width: 14,
+          height: 14,
+          transform: [{ rotate: '45deg' }],
+          backgroundColor: bg,
+          borderLeftWidth: 1.5,
+          borderTopWidth: 1.5,
+          borderColor: border,
+          borderTopLeftRadius: 3,
+          zIndex: 1,
+        }}
+      >
+        <View style={{ flex: 1, backgroundColor: tint }} />
+      </View>
+      <View style={{ borderRadius: 14, borderWidth: 1.5, borderColor: border, backgroundColor: bg, overflow: 'hidden' }}>
+        <View style={{ backgroundColor: tint, padding: 12, gap: 8 }}>
+          <T size={12} tone="muted" weight="500">{title}</T>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{children}</View>
+        </View>
+      </View>
     </View>
   );
 }
