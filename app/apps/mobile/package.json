@@ -37,5 +37,8 @@
   "devDependencies": {
     "@types/react": "*",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "@expo/require-utils": "58.0.6"
   }
 }
