@@ -35,3 +35,14 @@ export function splitCapital(accounts: Account[]): Omit<Capital, 'accounts'> {
   }
   return { free: own + creditInFree, creditInFree, frozen, debt, creditAvailable, total: own + frozen - debt };
 }
+
+/** Окно (в днях), за которое считается частота использования счёта. */
+export const ACCOUNT_USAGE_DAYS = 90;
+
+/** Счета по частоте использования: самые используемые — первыми; при равенстве — обычный порядок. */
+export function sortByUsage<A extends { usage?: number }>(accounts: A[]): A[] {
+  return accounts
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => (y.a.usage ?? 0) - (x.a.usage ?? 0) || x.i - y.i)
+    .map((x) => x.a);
+}

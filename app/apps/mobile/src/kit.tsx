@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react';
 import {
+  Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -36,6 +38,8 @@ export function Sheet({
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const rootRef = useRef<ComponentRef<typeof View>>(null);
+  const kbPad = useAndroidKeyboardPad(rootRef, visible);
   return (
     <Modal
       visible={visible}
@@ -43,33 +47,68 @@ export function Sheet({
       presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.card }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            paddingHorizontal: 16,
-            paddingTop: Platform.OS === 'ios' ? 14 : insets.top + 8,
-            paddingBottom: 8,
-          }}
-        >
-          <T size={18} weight="700" style={{ flex: 1 }} numberOfLines={1}>{title}</T>
-          {right}
-          <RoundBtn onPress={onClose}>
-            <X size={20} color={t.text} />
-          </RoundBtn>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: t.card }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
+      >
+        <View ref={rootRef} style={{ flex: 1, paddingBottom: kbPad }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              paddingHorizontal: 16,
+              paddingTop: Platform.OS === 'ios' ? 14 : insets.top + 8,
+              paddingBottom: 8,
+            }}
+          >
+            <T size={18} weight="700" style={{ flex: 1 }} numberOfLines={1}>{title}</T>
+            {right}
+            <RoundBtn onPress={onClose}>
+              <X size={20} color={t.text} />
+            </RoundBtn>
+          </View>
+          {scroll ? (
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: insets.bottom + 32 }}>
+              {children}
+            </ScrollView>
+          ) : (
+            children
+          )}
         </View>
-        {scroll ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: insets.bottom + 32 }}>
-            {children}
-          </ScrollView>
-        ) : (
-          children
-        )}
       </KeyboardAvoidingView>
     </Modal>
   );
+}
+
+/**
+ * Android: окно Modal рисуется «от края до края», и система больше не сжимает его под клавиатуру —
+ * клавиатура просто перекрывает низ окна. Поэтому сами считаем, сколько окна закрыто клавиатурой,
+ * и отдаём это как нижний отступ: прокрутка уменьшается, и поле ввода оказывается над клавиатурой.
+ * Если система всё же сжала окно (старые устройства), перекрытие получится нулевым — двойного отступа не будет.
+ */
+function useAndroidKeyboardPad(ref: RefObject<ComponentRef<typeof View> | null>, active: boolean) {
+  const insets = useSafeAreaInsets();
+  const [pad, setPad] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !active) return;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      // клавиатура в событии — без навигационной полосы, а окно уходит под неё
+      const kb = e.endCoordinates.height + insets.bottom;
+      const kbTop = Dimensions.get('screen').height - kb;
+      const node = ref.current;
+      if (!node) return setPad(kb);
+      node.measureInWindow((_x, y, _w, h) => setPad(h > 0 ? Math.max(0, Math.round(y + h - kbTop)) : kb));
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setPad(0));
+    return () => {
+      show.remove();
+      hide.remove();
+      setPad(0);
+    };
+  }, [active, insets.bottom]); // eslint-disable-line react-hooks/exhaustive-deps
+  return pad;
 }
 
 export function RoundBtn({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) {

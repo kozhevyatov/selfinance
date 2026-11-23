@@ -9,6 +9,7 @@ import {
   getCurrentCurrency,
   isCredit,
   parseAmount,
+  sortByUsage,
   todayISO,
   type Account,
   type TxType,
@@ -53,7 +54,8 @@ function TxForm({ opts, onClose, onCross }: { opts: TxSheetOptions; onClose: () 
   const plan = edit ? undefined : opts.planned;
   const canCross = !edit && budgets.filter((b) => b.role !== 'viewer').length > 1;
 
-  const active = useMemo(() => l.accounts.filter((a) => !a.isArchived), [l.accounts]);
+  // счета по частоте использования: самые ходовые — первыми
+  const active = useMemo(() => sortByUsage(l.accounts.filter((a) => !a.isArchived)), [l.accounts]);
   const defaultAcc = (preferred?: string | null) =>
     active.find((a) => a.id === preferred)?.id ?? active.find((a) => !a.isFrozen && !isCredit(a))?.id ?? active[0]?.id ?? '';
 

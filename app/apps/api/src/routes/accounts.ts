@@ -3,7 +3,7 @@ import { accountCreateSchema, accountUpdateSchema, isCreditKind, reconcileSchema
 import { getDb } from '../context';
 import { requireUser } from '../lib/auth';
 import { badRequest, notFound, nowIso, uuidv7 } from '../lib/util';
-import { accountBalances, getAccount, listAccounts, toAccount } from '../services/accounts';
+import { accountBalances, accountUsage, getAccount, listAccounts, toAccount } from '../services/accounts';
 import { requireBudget } from '../services/budgets';
 
 type P = { budgetId: string; accountId: string };
@@ -88,7 +88,8 @@ export default async function accountRoutes(app: FastifyInstance) {
     await db.updateTable('accounts').set(patch).where('id', '=', accountId).execute();
     const updated = (await getAccount(db, budgetId, accountId))!;
     const balances = await accountBalances(db, budgetId);
-    return toAccount(updated, balances.get(accountId) ?? 0);
+    const usage = await accountUsage(db, budgetId);
+    return toAccount(updated, balances.get(accountId) ?? 0, usage.get(accountId) ?? 0);
   });
 
   /** Удаление: если по счёту есть операции — счёт архивируется. */

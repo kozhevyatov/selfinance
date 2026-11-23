@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { addDays, amountToInput, formatMoney, parseAmount, isCredit, todayISO, type Account, type Planned, type Recurring, type Transaction, type TxType, currencySymbol, getCurrentCurrency } from '@selfinance/shared';
+import { addDays, amountToInput, formatMoney, parseAmount, isCredit, sortByUsage, todayISO, type Account, type Planned, type Recurring, type Transaction, type TxType, currencySymbol, getCurrentCurrency } from '@selfinance/shared';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useBudget } from '../lib/budget';
@@ -39,7 +39,8 @@ export function TxSheet({ opts, onClose, onCross }: { opts: TxSheetOptions; onCl
   const today = todayISO(user?.timezone);
   const edit = opts.tx;
 
-  const activeAccounts = l.accounts.filter((a) => !a.isArchived);
+  // счета по частоте использования: самые ходовые — первыми
+  const activeAccounts = sortByUsage(l.accounts.filter((a) => !a.isArchived));
   const lastAcc = (() => {
     try {
       return localStorage.getItem(LAST_ACC + budgetId) ?? '';

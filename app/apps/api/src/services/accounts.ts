@@ -1,5 +1,5 @@
 import { sql } from 'kysely';
-import type { Account } from '@selfinance/shared';
+import { ACCOUNT_USAGE_DAYS, addDays, todayISO, type Account } from '@selfinance/shared';
 import type { DB } from '../db';
 import type { AccountsTable } from '../db/types';
 import { num } from '../lib/util';
@@ -33,7 +33,32 @@ export async function accountBalances(db: DB, budgetId: string): Promise<Map<str
   return map;
 }
 
-export function toAccount(a: AccountsTable, balance: number): Account {
+/** Сколько раз счёт использовался в операциях за последние ACCOUNT_USAGE_DAYS дней (корректировки не считаем). */
+export async function accountUsage(db: DB, budgetId: string): Promise<Map<string, number>> {
+  const since = addDays(todayISO(), -ACCOUNT_USAGE_DAYS);
+  const base = db
+    .selectFrom('transactions')
+    .where('budget_id', '=', budgetId)
+    .where('deleted_at', 'is', null)
+    .where('date', '>=', since);
+  const from = await base
+    .select(['account_id', sql<number>`count(*)`.as('n')])
+    .where('type', 'in', ['income', 'expense', 'transfer'])
+    .groupBy('account_id')
+    .execute();
+  const to = await base
+    .select(['to_account_id', sql<number>`count(*)`.as('n')])
+    .where('type', '=', 'transfer')
+    .where('to_account_id', 'is not', null)
+    .groupBy('to_account_id')
+    .execute();
+  const map = new Map<string, number>();
+  for (const r of from) if (r.account_id) map.set(r.account_id, num(r.n));
+  for (const r of to) if (r.to_account_id) map.set(r.to_account_id, (map.get(r.to_account_id) ?? 0) + num(r.n));
+  return map;
+}
+
+export function toAccount(a: AccountsTable, balance: number, usage = 0): Account {
   return {
     id: a.id,
     name: a.name,
@@ -49,6 +74,7 @@ export function toAccount(a: AccountsTable, balance: number): Account {
     creditLimit: a.kind === 'credit' && a.credit_limit != null ? num(a.credit_limit) : null,
     includeInFree: a.kind === 'credit' && !!a.include_in_free,
     balance,
+    usage,
   };
 }
 
@@ -56,8 +82,8 @@ export async function listAccounts(db: DB, budgetId: string, includeArchived = f
   let q = db.selectFrom('accounts').selectAll().where('budget_id', '=', budgetId).where('deleted_at', 'is', null);
   if (!includeArchived) q = q.where('is_archived', '=', 0);
   const rows = await q.orderBy('sort').orderBy('created_at').execute();
-  const balances = await accountBalances(db, budgetId);
-  return rows.map((r) => toAccount(r, balances.get(r.id) ?? 0));
+  const [balances, usage] = await Promise.all([accountBalances(db, budgetId), accountUsage(db, budgetId)]);
+  return rows.map((r) => toAccount(r, balances.get(r.id) ?? 0, usage.get(r.id) ?? 0));
 }
 
 export async function getAccount(db: DB, budgetId: string, id: string) {

@@ -86,6 +86,8 @@ export interface Account {
   creditLimit: number | null;
   includeInFree: boolean; // кредитка: доступный лимит прибавляется к свободным деньгам
   balance: number; // у кредитов отрицательный = долг
+  /** сколько операций по счёту за последние 90 дней — для сортировки в форме операции (старый сервер не присылает) */
+  usage?: number;
 }
 
 export interface Category {
