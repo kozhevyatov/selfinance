@@ -2,7 +2,7 @@
   "expo": {
     "name": "Selfinance",
     "slug": "selfinance",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "selfinance",
@@ -10,7 +10,7 @@
     "backgroundColor": "#F2F3F5",
     "ios": {
       "bundleIdentifier": "ru.nskarl.selfinance",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
@@ -26,7 +26,7 @@
     },
     "android": {
       "package": "ru.nskarl.selfinance",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4338CA"
