@@ -13,8 +13,9 @@ import {
   todayISO,
   weekRange,
 } from '@selfinance/shared';
+import { HeatCalendar, InsightCards, MatrixView, MonthlyTable, rateLabel } from '../StatsDetails';
 import { DynamicsChart, StructureView } from '../charts';
-import { useCapital, useDynamics, useLimits, useLookups, useMembers, useSummary, type StatsFilter } from '../data';
+import { useCapital, useDynamics, useInsights, useMatrix, useLimits, useLookups, useMembers, useSummary, type StatsFilter } from '../data';
 import { DateStepper, Select, type Option } from '../kit';
 import { invalidateAll } from '../query';
 import { useSession } from '../session';
@@ -78,7 +79,11 @@ export function StatsScreen() {
   const fSummary = useSummary(from, to, filter, filtered);
   const fPrev = useSummary(prevFrom, prevTo, filter, filtered);
   const dynTo = mode === 'year' ? `${year}-12` : mode === 'month' ? month : to.slice(0, 7);
-  const dynamics = useDynamics(dynTo > curMonth ? curMonth : dynTo, 12, filter);
+  const dynMonth = dynTo > curMonth ? curMonth : dynTo;
+  const dynamics = useDynamics(dynMonth, 12, filter);
+  const insights = useInsights(from, to, filter);
+  const sType = kind === 'all' ? structType : kind;
+  const matrix = useMatrix(dynMonth, sType, 12, filter);
   const capital = useCapital();
   const limits = useLimits(mode === 'month' ? month : curMonth);
 
@@ -86,7 +91,6 @@ export function StatsScreen() {
   const s = filtered ? (fSummary.data?.from === from && fSummary.data?.to === to ? fSummary.data : undefined) : all;
   const prevData = filtered ? fPrev.data : prev.data;
   const prevReady = !!prevData && !!s && prevData.from === s.prev.from;
-  const sType = kind === 'all' ? structType : kind;
   const showDays = !!s && daysBetween(from, to) <= 62;
 
   const typeCats = l.categories.filter((c) => c.type === kind && !c.isArchived);
@@ -108,7 +112,7 @@ export function StatsScreen() {
   const onRefresh = async () => {
     setPulling(true);
     invalidateAll();
-    await Promise.all([summary.refetch(), dynamics.refetch(), capital.refetch()]);
+    await Promise.all([summary.refetch(), dynamics.refetch(), capital.refetch(), insights.refetch(), matrix.refetch()]);
     setPulling(false);
   };
 
@@ -192,6 +196,7 @@ export function StatsScreen() {
           <>
             {kind === 'all' ? <MonthTotals s={s} label={label} /> : <TypeTotals s={s} all={filtered ? all : undefined} kind={kind} label={label} />}
             {kind !== 'expense' && <ExpectedIncomeBox s={s} />}
+            {kind === 'all' && !filtered && <T weight="600">Норма сбережений · {rateLabel(s.income, s.expense)}</T>}
             {showDays && <DaysChart s={s} today={today} kind={kind === 'all' ? 'both' : kind} />}
           </>
         ) : (
@@ -239,6 +244,25 @@ export function StatsScreen() {
         ) : (
           <Skeleton height={260} />
         )}
+      </Card>
+
+      {s && daysBetween(from, to) <= 400 && <HeatCalendar key={from + to + kind} s={s} today={today} weekStart={weekStart} kind={kind === 'income' ? 'income' : 'expense'} />}
+      {insights.data && l.ready
+        ? <InsightCards data={insights.data} kind={kind} l={l} weekStart={weekStart} />
+        : <Card>{insights.error ? <T tone="muted">Не удалось загрузить разбор операций</T> : <Skeleton height={180} />}</Card>}
+      <Card>
+        <SectionTitle>{catId ? 'Подкатегории по месяцам' : 'Категории по месяцам'}</SectionTitle>
+        {kind === 'all' && <Segmented value={structType} onChange={setStructType} options={[{ value: 'expense', label: 'Расходы' }, { value: 'income', label: 'Доходы' }]} />}
+        {matrix.data && l.ready ? <MatrixView data={matrix.data} l={l} sub={!!catId} /> :
+          matrix.error ? <T tone="muted">Не удалось загрузить категории по месяцам</T> : <Skeleton height={140} />}
+      </Card>
+      {!filtered && <Card>
+        <SectionTitle>{mode === 'year' ? `${year} год по месяцам` : '12 месяцев по цифрам'}</SectionTitle>
+        {dynamics.data ? <MonthlyTable points={mode === 'year' ? dynamics.data.filter(p => p.month.startsWith(String(year))) : dynamics.data} /> : <Skeleton height={160} />}
+      </Card>}
+      <Card>
+        <SectionTitle>Капитал бюджета по месяцам</SectionTitle>
+        {dynamics.data ? <MonthlyTable points={dynamics.data} capital /> : <Skeleton height={160} />}
       </Card>
 
       <Card>

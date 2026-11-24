@@ -736,3 +736,87 @@ main.page { padding: 28px 40px 64px; max-width: 1240px; width: 100%; min-width: 
 .invite-bar span { flex: 1; color: var(--ink) }
 
 .back-link { display: inline-flex; align-items: center; gap: 4px; margin: -8px 0 14px; color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 500 }
+
+/* ---------- Статистика: подробности ---------- */
+.stx-hint { font-size: 12.5px; color: var(--muted); margin: 12px 0 0 }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px }
+.kpi { background: var(--surface-2); border-radius: var(--radius-m); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.kpi > span { font-size: 12.5px; color: var(--muted) }
+.kpi b { font-size: 20px; font-weight: 650; letter-spacing: -.01em }
+.kpi small { font-size: 12px; color: var(--ink-2) }
+
+.mand-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; gap: 2px; background: var(--surface-2) }
+.mand-bar i { display: block; min-width: 3px }
+.mand-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px }
+.mand-row { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; font-size: 14px }
+.mand-row i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px }
+
+.wd-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; height: 170px }
+.wd-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0 }
+.wd-col i { display: block; width: 60%; max-width: 30px; border-radius: 6px 6px 2px 2px; background: var(--expense); opacity: .45 }
+.wd-col.top i { opacity: .9 }
+.wd-col small { font-size: 11.5px; color: var(--ink-2) }
+.wd-col span { font-size: 12px; color: var(--muted) }
+.wd-col span.we { color: var(--expense) }
+
+.top-ops, .anoms { display: flex; flex-direction: column; gap: 2px }
+.top-op, .anom { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 4px; border-radius: 10px }
+.anom { grid-template-columns: auto minmax(0, 1fr) auto }
+.top-n { width: 16px; text-align: right; font-size: 12px }
+.top-main { display: flex; flex-direction: column; min-width: 0 }
+.top-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px }
+.top-main small { font-size: 12px }
+.anoms h3 { margin: 10px 0 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em }
+.anoms h3:first-child { margin-top: 0 }
+.anom-d { display: flex; flex-direction: column; align-items: flex-end; font-weight: 600; font-size: 14px }
+.anom-d small { font-weight: 400; font-size: 12px; color: var(--muted) }
+
+.mx-wrap { overflow-x: auto; margin: 0 -8px; padding: 0 8px }
+.mx, .mt { width: 100%; border-collapse: separate; border-spacing: 2px; font-size: 13px }
+.mx th, .mx td { padding: 6px 6px; text-align: right; white-space: nowrap; border-radius: 6px }
+.mx thead th { font-weight: 500; color: var(--muted); font-size: 12px }
+.mx thead th.cur, .mx td.cur { outline: 1.5px solid var(--line) }
+.mx td { background: color-mix(in srgb, var(--hc, transparent) calc(var(--heat, 0) * 100%), transparent) }
+.mx .mx-cat { text-align: left; font-weight: 500; position: sticky; left: 0; background: var(--surface); z-index: 1; max-width: 180px; overflow: hidden; text-overflow: ellipsis }
+.mx .mx-avg { font-weight: 600; padding-left: 12px }
+.mx tfoot th, .mx tfoot td { font-weight: 600; border-top: 1px solid var(--line) }
+.mx .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px }
+.mt th, .mt td { padding: 8px 10px; text-align: right; white-space: nowrap }
+.mt th:first-child { text-align: left; font-weight: 500 }
+.mt thead th { font-weight: 500; color: var(--muted); font-size: 12px }
+.mt tbody tr:nth-child(odd) { background: var(--surface-2) }
+.mt tbody tr.cur th { font-weight: 650 }
+.mt tfoot th, .mt tfoot td { font-weight: 600 }
+.mt tfoot tr.muted th, .mt tfoot tr.muted td { font-weight: 400; color: var(--muted) }
+.mt .tag { display: inline-block; margin-left: 8px; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); font-weight: 500 }
+.mt .tag.inc { background: var(--income-soft); color: var(--income) }
+.mt .tag.exp { background: var(--expense-soft); color: var(--expense) }
+
+.cap-plot { display: grid; gap: 8px; height: 200px }
+.cap-col { height: 100%; display: flex; flex-direction: column; border-radius: 8px; padding: 0 2px }
+.cap-col.cur { background: var(--surface-2) }
+.cap-up { display: flex; flex-direction: column-reverse; align-items: center; border-bottom: 1px solid var(--line) }
+.cap-down { display: flex; flex-direction: column; align-items: center }
+.cap-col i { display: block; width: 56%; max-width: 28px }
+.cap-col .c-free { background: var(--accent); opacity: .85; border-radius: 4px 4px 0 0 }
+.cap-col .c-frozen { background: var(--frozen); opacity: .85 }
+.cap-col .c-debt { background: var(--credit); opacity: .85; border-radius: 0 0 4px 4px }
+
+.cal-scroll { overflow-x: auto }
+.cal-grid { display: grid; grid-auto-rows: auto; gap: 3px; width: max-content; align-items: center }
+.cal-m { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: visible }
+.cal-wd { font-size: 11px; color: var(--muted); padding-right: 6px }
+.cal-d { display: block; aspect-ratio: 1; border-radius: 3px; background: var(--surface-2); min-width: 8px }
+button.cal-d { padding: 0; border: 0; cursor: pointer }
+button.cal-d[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent) }
+.cal-d.out { background: transparent }
+.cal-d.future { background: transparent; outline: 1px dashed var(--line); outline-offset: -1px }
+.cal-d.l1 { background: color-mix(in srgb, var(--hc, var(--expense)) 18%, var(--surface-2)) }
+.cal-d.l2 { background: color-mix(in srgb, var(--hc, var(--expense)) 38%, var(--surface-2)) }
+.cal-d.l3 { background: color-mix(in srgb, var(--hc, var(--expense)) 58%, var(--surface-2)) }
+.cal-d.l4 { background: color-mix(in srgb, var(--hc, var(--expense)) 78%, var(--surface-2)) }
+.cal-d.l5 { background: var(--hc, var(--expense)) }
+.cal-d.today { outline: 2px solid var(--ink); outline-offset: -1px }
+.cal-foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; font-size: 12.5px }
+.cal-legend { display: inline-flex; align-items: center; gap: 4px; color: var(--muted) }
+.cal-legend .cal-d { width: 11px; min-width: 11px }

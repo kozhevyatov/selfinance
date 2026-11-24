@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Account, Budget, BudgetInvite, BudgetMember, Capital, Category, IncomingInvite, InviteCandidate, DynamicsPoint, Limits, Planned, PlannedOverview, Recurring, Summary, Transaction, TxCreateInput, TxPage, UpcomingPayment, VersionInfo } from '@selfinance/shared';
+import type { Account, Budget, BudgetInvite, BudgetMember, Capital, Category, CategoryMatrix, IncomingInvite, Insights, InviteCandidate, DynamicsPoint, Limits, Planned, PlannedOverview, Recurring, Summary, Transaction, TxCreateInput, TxPage, UpcomingPayment, VersionInfo } from '@selfinance/shared';
 import { api, del, get, patch, post } from './api';
 import { useBudget } from './budget';
 
@@ -72,7 +72,7 @@ function useInvalidateMoney() {
   const qc = useQueryClient();
   const { budgetId } = useBudget();
   return () => {
-    for (const k of ['transactions', 'summary', 'capital', 'accounts', 'dynamics', 'recurring', 'upcoming', 'limits', 'planned']) qc.invalidateQueries({ queryKey: [k, budgetId] });
+    for (const k of ['transactions', 'summary', 'capital', 'accounts', 'dynamics', 'insights', 'matrix', 'recurring', 'upcoming', 'limits', 'planned']) qc.invalidateQueries({ queryKey: [k, budgetId] });
     qc.invalidateQueries({ queryKey: ['accounts-all', budgetId] });
   };
 }
@@ -151,6 +151,22 @@ export function useDynamics(to: string, months = 12, filter: StatsFilter = {}) {
   });
 }
 
+export function useInsights(from: string, to: string, filter: StatsFilter = {}) {
+  const { budgetId } = useBudget();
+  return useQuery({
+    queryKey: ['insights', budgetId, from, to, ...filterKey(filter)],
+    queryFn: () => get<Insights>(`/budgets/${budgetId}/stats/insights`, { from, to, categoryId: filter.categoryId, accountId: filter.accountId, userId: filter.userId }),
+  });
+}
+
+export function useMatrix(to: string, type: 'expense' | 'income', months = 12, filter: StatsFilter = {}) {
+  const { budgetId } = useBudget();
+  return useQuery({
+    queryKey: ['matrix', budgetId, to, type, months, ...filterKey(filter)],
+    queryFn: () => get<CategoryMatrix>(`/budgets/${budgetId}/stats/matrix`, { to, type, months, categoryId: filter.categoryId, accountId: filter.accountId, userId: filter.userId }),
+  });
+}
+
 /* ---------- категории ---------- */
 
 export interface CategoryInput {
@@ -173,6 +189,8 @@ export function useSaveCategory() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories', budgetId] });
       qc.invalidateQueries({ queryKey: ['limits', budgetId] });
+      qc.invalidateQueries({ queryKey: ['insights', budgetId] });
+      qc.invalidateQueries({ queryKey: ['matrix', budgetId] });
     },
   });
 }
@@ -338,7 +356,7 @@ export function useCheckVersion() {
 function useInvalidateAllMoney() {
   const qc = useQueryClient();
   return () => {
-    for (const k of ['transactions', 'summary', 'capital', 'accounts', 'accounts-all', 'dynamics', 'limits', 'planned', 'budget-accounts']) qc.invalidateQueries({ queryKey: [k] });
+    for (const k of ['transactions', 'summary', 'capital', 'accounts', 'accounts-all', 'dynamics', 'insights', 'matrix', 'limits', 'planned', 'budget-accounts']) qc.invalidateQueries({ queryKey: [k] });
   };
 }
 

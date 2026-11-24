@@ -178,6 +178,52 @@ export interface DynamicsPoint {
   income: number;
   expense: number;
   capital: number; // все счета на конец месяца
+  /** Разбивка капитала на конец месяца по текущему виду счетов (старый сервер не присылает). */
+  free?: number; // свои деньги в обороте (без лимитов кредиток)
+  frozen?: number;
+  debt?: number; // долг по кредиткам и кредитам, положительное число
+}
+
+/** Подробности периода: дни недели, крупные операции, обязательные траты, аномалии. */
+export interface Insights {
+  from: string;
+  to: string;
+  expenseCount: number;
+  incomeCount: number;
+  avgExpense: number; // средний чек расхода
+  /** 0 — воскресенье … 6 — суббота; days — сколько таких дней в периоде (по сегодня). */
+  weekdays: { weekday: number; total: number; days: number; avg: number }[];
+  topExpense: InsightTx[];
+  topIncome: InsightTx[];
+  /** Расходы периода: регулярные платежи, категории «не учитывать в лимите», покупки по плану, остальное. */
+  mandatory: { regular: number; excludedCats: number; planned: number; free: number };
+  /** Сравнение категорий расходов со средним за 3 прошлых периода (для текущего — за то же число дней). */
+  anomalies: Anomaly[];
+  anomalyPeriods: number; // за сколько прошлых периодов посчитано среднее (0 — сравнивать не с чем)
+}
+
+export interface InsightTx {
+  id: string;
+  date: string;
+  amount: number;
+  categoryId: string | null;
+  accountId: string;
+  comment: string | null;
+}
+
+export interface Anomaly {
+  categoryId: string | null; // категория верхнего уровня
+  amount: number;
+  expected: number; // среднее прошлых периодов (для текущего — пропорционально прошедшим дням)
+  diff: number; // amount − expected
+  pct: number | null; // null — раньше трат не было
+}
+
+/** Категории × месяцы. */
+export interface CategoryMatrix {
+  months: string[]; // YYYY-MM
+  activeMonths: number; // сколько месяцев из окна бюджет уже вёлся — для среднего
+  rows: { categoryId: string | null; values: number[]; total: number; avg: number; max: number }[];
 }
 
 export interface Recurring {

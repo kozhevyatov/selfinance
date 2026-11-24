@@ -16,9 +16,10 @@ import { DynamicsChart, StructureView } from '../components/Charts';
 import { AccountsList, CapitalBlock, DaysChart, ExpectedIncomeBox, MonthTotals, TypeTotals, type PrevLabel } from '../components/HomeWidgets';
 import { TopBar } from '../components/Layout';
 import { LimitCard } from '../components/Limits';
+import { Anomalies, CalendarHeat, CapitalSplitChart, KpiRow, MandatoryBlock, MatrixTable, MonthsTable, TopOps, WeekdaysChart } from '../components/StatsMore';
 import { useAuth } from '../lib/auth';
 import { useLookups } from '../lib/lookups';
-import { useCapital, useCurrentMembers, useDynamics, useLimits, useSummary, type StatsFilter } from '../lib/queries';
+import { useCapital, useCurrentMembers, useDynamics, useInsights, useLimits, useMatrix, useSummary, type StatsFilter } from '../lib/queries';
 
 type Mode = 'month' | 'week' | 'year' | 'range';
 type Kind = 'all' | 'expense' | 'income';
@@ -76,12 +77,16 @@ export function StatsPage() {
   const fSummary = useSummary(from, to, filter, filtered);
   const fPrev = useSummary(prevFrom, prevTo, filter, filtered);
   const dynTo = mode === 'year' ? `${year}-12` : mode === 'month' ? month : to.slice(0, 7);
-  const dynamics = useDynamics(dynTo > curMonth ? curMonth : dynTo, 12, filter);
+  const dynMonth = dynTo > curMonth ? curMonth : dynTo;
+  const dynamics = useDynamics(dynMonth, 12, filter);
+  const insights = useInsights(from, to, filter);
+  const matrixType: 'expense' | 'income' = kind === 'all' ? structType : kind;
+  const matrix = useMatrix(dynMonth, matrixType, 12, filter);
   const capital = useCapital();
   const limits = useLimits(mode === 'month' ? month : curMonth);
 
-  const all = summary.data;
-  const s = filtered ? (fSummary.data?.from === from && fSummary.data?.to === to ? fSummary.data : undefined) : all;
+  const all = summary.isPlaceholderData ? undefined : summary.data;
+  const s = filtered ? (!fSummary.isPlaceholderData && fSummary.data?.from === from && fSummary.data?.to === to ? fSummary.data : undefined) : all;
   const prevData = filtered ? fPrev.data : prev.data;
   const prevReady = prevData && s && prevData.from === s.prev.from;
   const sType = kind === 'all' ? structType : kind;
@@ -93,6 +98,12 @@ export function StatsPage() {
     setCatId('');
   };
   const showDays = s && daysBetween(from, to) <= 62;
+  const showCalendar = s && daysBetween(from, to) <= 400;
+  const ins = insights.data?.from === from && insights.data?.to === to ? insights.data : undefined;
+  const mx = matrix.data;
+  const insightFallback = insights.isError
+    ? <p className="muted">Не удалось загрузить разбор операций. <button type="button" onClick={() => insights.refetch()}>Повторить</button></p>
+    : <div className="skeleton" style={{ height: 160 }} />;
 
   return (
     <>
@@ -169,6 +180,11 @@ export function StatsPage() {
               {kind === 'all' ? <MonthTotals s={s} prevLabel={label} /> : <TypeTotals s={s} all={filtered ? all : undefined} kind={kind} prevLabel={label} />}
               {kind !== 'expense' && <ExpectedIncomeBox s={s} />}
               {showDays && <DaysChart s={s} today={today} kind={kind === 'all' ? 'both' : kind} />}
+              {ins && kind !== 'income' && (
+                <div style={{ marginTop: 18 }}>
+                  <KpiRow ins={ins} income={s.income} expense={s.expense} showSavings={kind === 'all' && !filtered} />
+                </div>
+              )}
             </>
           ) : (
             <div className="skeleton" style={{ height: 180 }} />
@@ -176,6 +192,13 @@ export function StatsPage() {
         </section>
 
         {mode === 'month' && kind !== 'income' && !filtered && limits.data?.month === month && <LimitCard data={limits.data} />}
+
+        {showCalendar && (
+          <section className="panel span-all" aria-label="Календарь">
+            <div className="panel-head"><h2>{kind === 'income' ? 'Календарь доходов' : 'Календарь трат'}</h2></div>
+            <CalendarHeat key={from + to + kind} daily={s!.daily} from={from} to={to} today={today} weekStart={weekStart} kind={kind === 'income' ? 'income' : 'expense'} />
+          </section>
+        )}
 
         <section className="panel span-all" aria-label="Динамика">
           <div className="panel-head">
@@ -217,6 +240,55 @@ export function StatsPage() {
           ) : (
             <div className="skeleton" style={{ height: 200 }} />
           )}
+        </section>
+
+        {kind !== 'income' && (
+          <>
+            <section className="panel" aria-label="Обязательные и свободные">
+              <div className="panel-head"><h2>Обязательные и свободные</h2></div>
+              {ins ? <MandatoryBlock m={ins.mandatory} /> : insightFallback}
+            </section>
+            <section className="panel" aria-label="Дни недели">
+              <div className="panel-head"><h2>По дням недели</h2><span className="muted" style={{ fontSize: 13 }}>в среднем за день</span></div>
+              {ins ? <WeekdaysChart ins={ins} weekStart={weekStart} /> : insightFallback}
+            </section>
+            <section className="panel" aria-label="Что изменилось">
+              <div className="panel-head"><h2>Что изменилось</h2></div>
+              {ins && l.ready ? <Anomalies list={ins.anomalies} periods={ins.anomalyPeriods} l={l} /> : insightFallback}
+            </section>
+          </>
+        )}
+
+        <section className={'panel' + (kind === 'income' ? ' span-all' : '')} aria-label="Крупнейшие операции">
+          <div className="panel-head"><h2>{kind === 'income' ? 'Крупнейшие доходы' : 'Крупнейшие траты'}</h2></div>
+          {ins && l.ready ? (
+            <TopOps list={kind === 'income' ? ins.topIncome : ins.topExpense} l={l} kind={kind === 'income' ? 'income' : 'expense'} />
+          ) : insightFallback}
+        </section>
+
+        <section className="panel span-all" aria-label="Категории по месяцам">
+          <div className="panel-head">
+            <h2>{catId ? 'Подкатегории по месяцам' : 'Категории по месяцам'}</h2>
+            {kind === 'all' && (
+              <div className="segmented" style={{ padding: 3 }}>
+                <button type="button" aria-pressed={structType === 'expense'} onClick={() => setStructType('expense')}>Расходы</button>
+                <button type="button" aria-pressed={structType === 'income'} onClick={() => setStructType('income')}>Доходы</button>
+              </div>
+            )}
+          </div>
+          {mx && l.ready ? <MatrixTable data={mx} l={l} type={matrixType} current={mode === 'month' ? month : undefined} sub={!!catId} /> : matrix.isError ? <p className="muted">Не удалось загрузить категории. <button type="button" onClick={() => matrix.refetch()}>Повторить</button></p> : <div className="skeleton" style={{ height: 240 }} />}
+        </section>
+
+        {!filtered && (
+          <section className="panel span-all" aria-label="Месяцы">
+            <div className="panel-head"><h2>{mode === 'year' ? `${year} год по месяцам` : '12 месяцев по цифрам'}</h2></div>
+            {dynamics.data ? <MonthsTable points={mode === 'year' ? dynamics.data.filter(p => p.month.startsWith(String(year))) : dynamics.data} today={today} /> : <div className="skeleton" style={{ height: 240 }} />}
+          </section>
+        )}
+
+        <section className="panel span-all" aria-label="Капитал по месяцам">
+          <div className="panel-head"><h2>Капитал бюджета по месяцам</h2></div>
+          {dynamics.data ? <CapitalSplitChart points={dynamics.data} current={mode === 'month' ? month : undefined} /> : <div className="skeleton" style={{ height: 220 }} />}
         </section>
       </div>
     </>

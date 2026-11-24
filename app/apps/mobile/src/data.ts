@@ -8,6 +8,8 @@ import {
   type BudgetMember,
   type Capital,
   type Category,
+  type CategoryMatrix,
+  type Insights,
   type DynamicsPoint,
   type IncomingInvite,
   type Invite,
@@ -59,6 +61,20 @@ export function useSummary(from: string, to: string, filter: StatsFilter = {}, e
   const { budgetId } = useBudget();
   return useQuery(enabled ? `summary:${budgetId}:${from}:${to}:${fkey(filter)}` : null, () =>
     get<Summary>(`/budgets/${budgetId}/stats/summary`, { from, to, ...filter }),
+  );
+}
+
+export function useInsights(from: string, to: string, filter: StatsFilter) {
+  const { budgetId } = useBudget();
+  return useQuery(`insights:${budgetId}:${from}:${to}:${fkey(filter)}`, () =>
+    get<Insights>(`/budgets/${budgetId}/stats/insights`, { from, to, ...filter }),
+  );
+}
+
+export function useMatrix(to: string, type: 'income' | 'expense', months: number, filter: StatsFilter) {
+  const { budgetId } = useBudget();
+  return useQuery(`matrix:${budgetId}:${to}:${type}:${months}:${fkey(filter)}`, () =>
+    get<CategoryMatrix>(`/budgets/${budgetId}/stats/matrix`, { to, type, months, ...filter }),
   );
 }
 

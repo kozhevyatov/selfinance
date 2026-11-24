@@ -272,3 +272,9 @@ export const dynamicsQuerySchema = z.object({
   months: z.coerce.number().int().min(1).max(60).default(12),
   ...statsFilter,
 });
+export const matrixQuerySchema = z.object({
+  to: z.string().regex(/^\d{4}-\d{2}$/),
+  months: z.coerce.number().int().min(1).max(24).default(12),
+  type: z.enum(['expense', 'income']).default('expense'),
+  ...statsFilter,
+});
