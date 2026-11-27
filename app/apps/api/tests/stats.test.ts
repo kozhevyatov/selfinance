@@ -59,6 +59,18 @@ test('статистика одного бюджета с подкатегори
   assert.equal(matrix.rows[0].categoryId, sub.parent_id);
   const dynamics = await get<DynamicsPoint[]>('dynamics?to=2024-02&months=2');
   assert.deepEqual(dynamics[1], { month: '2024-02', income: 1000000, expense: 205000, free: 690000, frozen: 100000, debt: 5000, capital: 785000 });
+  await db.insertInto('transactions').values([
+    tx('small', 'expense', 1, { time: '23:59' }),
+    tx('small2', 'expense', 2, { time: '23:01' }),
+    tx('midnight', 'income', 1, { time: '00:00' }),
+  ]).execute();
+  const activity = await get<Insights>('insights?' + range);
+  assert.deepEqual(activity.frequentCategories?.expense, [{ categoryId: null, count: 4 }, { categoryId: sub.parent_id, count: 2 }]);
+  assert.equal(activity.hourly?.expense.byWeekday[4][23], 2);
+  assert.equal(activity.hourly?.expense.withoutTime, 4);
+  assert.equal(activity.hourly?.income.byWeekday[4][0], 1);
+  assert.deepEqual(filtered.frequentCategories?.expense, [{ categoryId: sub.id, count: 2 }]);
+  assert.equal(filtered.hourly?.expense.withoutTime, 2);
 });
 
 test('нулевой доход и високосный календарь с неполной неделей', () => {

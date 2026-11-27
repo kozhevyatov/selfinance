@@ -410,3 +410,37 @@ export function CalendarHeat({ daily, from, to, today, weekStart, kind }: { dail
     </div>
   );
 }
+
+export function ActivityPanels({ data, kind, l, weekStart }: { data: Insights; kind: 'expense' | 'income'; l: Lookups; weekStart: 0 | 1 }) {
+  const list = data.frequentCategories?.[kind];
+  const hours = data.hourly?.[kind];
+  const peak = hours ? Math.max(...hours.byWeekday.flat()) : 0;
+  const subject = kind === 'income' ? 'доходов' : 'расходов';
+  return <>
+    <section className="panel">
+      <div className="panel-head"><h2>Самые частые категории {subject}</h2></div>
+      {!list ? <p className="muted">Для рейтинга обновите сервер</p> : !list.length ? <p className="muted">Операций за период нет</p> :
+        <ol className="frequency-list">{list.map(row => <li key={row.categoryId ?? 'none'}>
+          <span>{l.category(row.categoryId)?.name ?? 'Без категории'}</span>
+          <b className="num">{row.count} {plural(row.count, 'операция', 'операции', 'операций')}</b>
+        </li>)}</ol>}
+    </section>
+    <section className="panel span-all">
+      <div className="panel-head"><h2>Частота {subject} по часам</h2></div>
+      {!hours ? <p className="muted">Для карты обновите сервер</p> : <>
+        {peak > 0 ? <div className="cal-scroll"><table className="hour-map" aria-label="Количество операций по дням недели и часам">
+          <thead><tr><th>Час</th>{hours.byWeekday[0].map((_, h) => <th key={h} scope="col">{String(h).padStart(2, '0')}</th>)}</tr></thead>
+          <tbody>{WD.map((_, i) => {
+            const day = (weekStart + i) % 7;
+            return <tr key={day}><th scope="row">{WD[day]}</th>{hours.byWeekday[day].map((count, h) =>
+              <td key={h} title={`${WD[day]}, ${h}:00–${h}:59 · операций: ${count}`}
+                style={count ? { background: `color-mix(in srgb, var(--${kind}) ${18 + 45 * count / peak}%, var(--surface))` } : undefined}>
+                {count || '·'}
+              </td>)}</tr>;
+          })}</tbody>
+        </table></div> : <p className="muted">{hours.withoutTime ? 'Нет операций с указанным временем' : 'Операций за период нет'}</p>}
+        {hours.withoutTime > 0 && <p className="stx-hint">Операций без времени — {hours.withoutTime}</p>}
+      </>}
+    </section>
+  </>;
+}

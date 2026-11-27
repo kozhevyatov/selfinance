@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { calendarHeat, formatMoney, MONTHS_NOM, savingsRate, type CategoryMatrix, type DynamicsPoint, type Insights, type Summary } from '@selfinance/shared';
 import type { Lookups } from './data';
-import { shortDate } from './format';
+import { plural, shortDate } from './format';
 import { mix, useTheme } from './theme';
 import { Card, Money, SectionTitle, T } from './ui';
 
@@ -147,4 +147,41 @@ export function MonthlyTable({ points, capital = false }: { points: DynamicsPoin
     rows.push({ id: 'total', cells: ['Всего', ...flows(income, expense)] });
   }
   return <Table headers={headers} rows={rows} />;
+}
+
+export function ActivityCards({ data, kind, l, weekStart }: { data: Insights; kind: 'expense' | 'income'; l: Lookups; weekStart: 0 | 1 }) {
+  const t = useTheme();
+  const list = data.frequentCategories?.[kind];
+  const hours = data.hourly?.[kind];
+  const peak = hours ? Math.max(...hours.byWeekday.flat()) : 0;
+  const subject = kind === 'income' ? 'доходов' : 'расходов';
+  return <>
+    <Card>
+      <SectionTitle>Самые частые категории {subject}</SectionTitle>
+      {!list ? <T tone="muted">Для рейтинга обновите сервер</T> : !list.length ? <T tone="muted">Операций за период нет</T> :
+        list.map((row, i) => <Detail key={row.categoryId ?? 'none'} label={`${i + 1}. ${l.category(row.categoryId)?.name ?? 'Без категории'}`}
+          value={<T weight="600">{row.count} {plural(row.count, 'операция', 'операции', 'операций')}</T>} />)}
+    </Card>
+    <Card>
+      <SectionTitle>Частота {subject} по часам</SectionTitle>
+      {!hours ? <T tone="muted">Для карты обновите сервер</T> : <>
+        {peak > 0 ? <ScrollView horizontal><View style={{ gap: 3 }}>
+          <View style={{ flexDirection: 'row', gap: 3 }}>
+            <T size={12} style={{ width: 28 }}>Час</T>
+            {hours.byWeekday[0].map((_, h) => <T key={h} size={12} tone="muted" style={{ width: 32, textAlign: 'center' }}>{String(h).padStart(2, '0')}</T>)}
+          </View>
+          {weekdays.map((_, i) => {
+            const day = (i + weekStart) % 7;
+            return <View key={day} style={{ flexDirection: 'row', gap: 3, alignItems: 'center' }}>
+              <T size={12} style={{ width: 28 }}>{weekdays[day]}</T>
+              {hours.byWeekday[day].map((count, h) => <T key={h} size={12} accessibilityLabel={`${weekdays[day]}, ${h}:00, операций: ${count}`}
+                style={{ minWidth: 32, textAlign: 'center', paddingVertical: 5, borderRadius: 4, overflow: 'hidden',
+                  backgroundColor: count ? mix(t[kind], t.card, 0.18 + 0.45 * count / peak) : t.input }}>{count || '·'}</T>)}
+            </View>;
+          })}
+        </View></ScrollView> : <T tone="muted">{hours.withoutTime ? 'Нет операций с указанным временем' : 'Операций за период нет'}</T>}
+        {hours.withoutTime > 0 && <T size={13} tone="muted" style={{ marginTop: 8 }}>Операций без времени — {hours.withoutTime}</T>}
+      </>}
+    </Card>
+  </>;
 }
