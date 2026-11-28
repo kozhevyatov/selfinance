@@ -13,7 +13,7 @@ import {
   todayISO,
   weekRange,
 } from '@selfinance/shared';
-import { ActivityCards, HeatCalendar, InsightCards, MatrixView, MonthlyTable, rateLabel } from '../StatsDetails';
+import { FrequentCategories, HeatCalendar, InsightCards, MatrixView, MonthlyTable, rateLabel } from '../StatsDetails';
 import { DynamicsChart, StructureView } from '../charts';
 import { useCapital, useDynamics, useInsights, useMatrix, useLimits, useLookups, useMembers, useSummary, type StatsFilter } from '../data';
 import { DateStepper, Select, type Option } from '../kit';
@@ -250,7 +250,7 @@ export function StatsScreen() {
       {insights.data && l.ready
         ? <>
           <InsightCards data={insights.data} kind={kind} l={l} weekStart={weekStart} />
-          <ActivityCards data={insights.data} kind={sType} l={l} weekStart={weekStart} />
+          <FrequentCategories data={insights.data} kind={sType} l={l} />
         </>
         : <Card>{insights.error ? <T tone="muted">Не удалось загрузить разбор операций</T> : <Skeleton height={180} />}</Card>}
       <Card>

@@ -16,7 +16,7 @@ import { DynamicsChart, StructureView } from '../components/Charts';
 import { AccountsList, CapitalBlock, DaysChart, ExpectedIncomeBox, MonthTotals, TypeTotals, type PrevLabel } from '../components/HomeWidgets';
 import { TopBar } from '../components/Layout';
 import { LimitCard } from '../components/Limits';
-import { ActivityPanels, Anomalies, CalendarHeat, CapitalSplitChart, KpiRow, MandatoryBlock, MatrixTable, MonthsTable, TopOps, WeekdaysChart } from '../components/StatsMore';
+import { FrequentCategories, Anomalies, CalendarHeat, CapitalSplitChart, KpiRow, MandatoryBlock, MatrixTable, MonthsTable, TopOps, WeekdaysChart } from '../components/StatsMore';
 import { useAuth } from '../lib/auth';
 import { useLookups } from '../lib/lookups';
 import { useCapital, useCurrentMembers, useDynamics, useInsights, useLimits, useMatrix, useSummary, type StatsFilter } from '../lib/queries';
@@ -266,7 +266,7 @@ export function StatsPage() {
           ) : insightFallback}
         </section>
 
-        {ins && l.ready && <ActivityPanels data={ins} kind={sType} l={l} weekStart={weekStart} />}
+        {ins && l.ready && <FrequentCategories data={ins} kind={sType} l={l} />}
 
         <section className="panel span-all" aria-label="Категории по месяцам">
           <div className="panel-head">

@@ -187,7 +187,6 @@ export interface DynamicsPoint {
 /** Подробности периода: дни недели, крупные операции, обязательные траты, аномалии. */
 export interface Insights {
   frequentCategories?: Record<'expense' | 'income', { categoryId: string | null; count: number }[]>;
-  hourly?: Record<'expense' | 'income', HourlyActivity>;
   from: string;
   to: string;
   expenseCount: number;
@@ -202,11 +201,6 @@ export interface Insights {
   /** Сравнение категорий расходов со средним за 3 прошлых периода (для текущего — за то же число дней). */
   anomalies: Anomaly[];
   anomalyPeriods: number; // за сколько прошлых периодов посчитано среднее (0 — сравнивать не с чем)
-}
-
-export interface HourlyActivity {
-  byWeekday: number[][]; // 0 — воскресенье, часы 0…23 по времени операции
-  withoutTime: number;
 }
 
 export interface InsightTx {

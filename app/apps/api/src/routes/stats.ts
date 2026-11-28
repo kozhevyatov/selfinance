@@ -368,8 +368,7 @@ export default async function statsRoutes(app: FastifyInstance) {
         .where('date', '>=', from)
         .where('date', '<=', to);
 
-    const activity = () => applyF(base().where('type', 'in', ['income', 'expense']).where('transfer_group_id', 'is', null), f);
-    const counts = await activity()
+    const counts = await applyF(base().where('type', 'in', ['income', 'expense']).where('transfer_group_id', 'is', null), f)
       .select(['type', 'category_id', sql<number>`count(*)`.as('n'), sql<number>`sum(amount)`.as('total')])
       .groupBy(['type', 'category_id']).execute();
     const categoryCounts = { income: new Map<string | null, number>(), expense: new Map<string | null, number>() };
@@ -388,18 +387,6 @@ export default async function statsRoutes(app: FastifyInstance) {
     const rank = (map: Map<string | null, number>) => [...map].map(([categoryId, count]) => ({ categoryId, count }))
       .sort((a, b) => b.count - a.count || (a.categoryId ?? '').localeCompare(b.categoryId ?? '')).slice(0, 10);
     const frequentCategories = { expense: rank(categoryCounts.expense), income: rank(categoryCounts.income) };
-
-    const hourPrefix = sql<string | null>`substr(time, 1, 2)`;
-    const hourCounts = await activity().select(['type', 'date', hourPrefix.as('hour'), sql<number>`count(*)`.as('n')])
-      .groupBy(['type', 'date', hourPrefix]).execute();
-    const emptyHours = () => ({ byWeekday: Array.from({ length: 7 }, () => Array<number>(24).fill(0)), withoutTime: 0 });
-    const hourly = { expense: emptyHours(), income: emptyHours() };
-    for (const r of hourCounts) {
-      if (r.type !== 'income' && r.type !== 'expense') continue;
-      const bucket = hourly[r.type];
-      if (r.hour && /^(?:[01]\d|2[0-3])$/.test(r.hour)) bucket.byWeekday[weekday(r.date)][Number(r.hour)] += num(r.n);
-      else bucket.withoutTime += num(r.n);
-    }
 
     // дни недели: сумма расходов и сколько таких дней в периоде (по сегодня)
     const daily = await applyF(base().select(['date', sql<number>`sum(amount)`.as('total')]).where('type', '=', 'expense'), f)
@@ -493,7 +480,6 @@ export default async function statsRoutes(app: FastifyInstance) {
       expenseCount,
       incomeCount: operationCounts.income,
       frequentCategories,
-      hourly,
       avgExpense: expenseCount ? Math.round(expenseTotal / expenseCount) : 0,
       weekdays: wd,
       topExpense: await top('expense'),
